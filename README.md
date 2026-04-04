@@ -1,6 +1,6 @@
 # uuid7pp
 
-[![CI](https://github.com/your-username/uuid7pp/actions/workflows/ci.yml/badge.svg)](https://github.com/your-username/uuid7pp/actions/workflows/ci.yml)
+[![CI](https://github.com/toge/uuid7pp/actions/workflows/ci.yml/badge.svg)](https://github.com/toge/uuid7pp/actions/workflows/ci.yml)
 
 極限まで最適化された C++26 向けの UUID v7 生成・変換ライブラリです。SIMD (SSSE3/SSE4.1) を活用し、ロックフリーかつスレッドセーフな設計により、128ビット UUID の生成と文字列変換を圧倒的な速度で行います。
 
@@ -25,7 +25,7 @@ Catch2 を使用した、`boost::uuid` (v1.90.0) との比較結果です。
 | :--- | :--- | :--- | :--- |
 | **生成 (generate)** | **~27.4 ns** | ~37.9 ns | **1.38x 高速** |
 | **文字列変換 (std::string)** | **~9.6 ns** | ~13.0 ns | **1.35x 高速** |
-| **文字列変換 (to_chars)** | **~2.5 ns** | N/A | **極限高速** |
+| **文字列変換 (to_chars)** | **~2.5 ns** | N/A | N/A |
 
 *注: `to_chars` はヒープ割当を行わないため、圧倒的なパフォーマンスを発揮します。*
 
