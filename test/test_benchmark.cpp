@@ -1,5 +1,5 @@
 #include "catch2/catch_all.hpp"
-#include "uuidv7pp.hpp"
+#include "uuid7pp.hpp"
 #include <boost/uuid/uuid.hpp>
 #include <boost/uuid/uuid_generators.hpp>
 #include <boost/uuid/uuid_io.hpp>
@@ -18,7 +18,7 @@ TEST_CASE("UUID v7 Benchmark", "[benchmark]") {
 
     SECTION("String Conversion (std::string)") {
         auto const u = uuid7pp::generator::generate();
-        
+
         BENCHMARK("uuid7pp::to_string") {
             return uuid7pp::to_string(u);
         };
@@ -38,7 +38,7 @@ TEST_CASE("UUID v7 Benchmark", "[benchmark]") {
             uuid7pp::to_chars(u, buf);
             return buf[0];
         };
-        
+
         BENCHMARK("uuid7pp::to_chars (no-hyphen, zero-alloc)") {
             uuid7pp::to_chars(u, buf, false);
             return buf[0];

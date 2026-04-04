@@ -1,9 +1,11 @@
-#include "catch2/catch_all.hpp"
-#include "uuidv7pp.hpp"
 #include <set>
 #include <unordered_set>
 #include <regex>
 #include <format>
+
+#include "catch2/catch_all.hpp"
+
+#include "uuid7pp.hpp"
 
 TEST_CASE("UUID v7 Generation", "[uuid]") {
     SECTION("Basic generation") {

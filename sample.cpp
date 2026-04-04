@@ -1,6 +1,6 @@
 #include <iostream>
 #include <format>
-#include "uuidv7pp.hpp"
+#include "uuid7pp.hpp"
 
 auto main() -> int {
   try {

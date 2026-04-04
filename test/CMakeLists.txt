@@ -1,7 +1,4 @@
 find_package(Catch2 REQUIRED CONFIG)
-if(POLICY CMP0167)
-    cmake_policy(SET CMP0167 NEW)
-endif()
 
 find_package(Boost REQUIRED CONFIG COMPONENTS uuid)
 
@@ -11,7 +8,7 @@ add_executable(all_test ${test_src})
 
 target_link_libraries(all_test PRIVATE 
     Catch2::Catch2WithMain 
-    uuidv7pp::uuidv7pp
+    uuid7pp::uuid7pp
     Boost::uuid
 )
 

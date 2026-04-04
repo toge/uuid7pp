@@ -34,7 +34,7 @@ Catch2 を使用した、`boost::uuid` (v1.90.0) との比較結果です。
 ### 基本的な生成と文字列変換
 
 ```cpp
-#include "uuidv7pp.hpp"
+#include "uuid7pp.hpp"
 #include <iostream>
 #include <format>
 

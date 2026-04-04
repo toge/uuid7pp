@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.25)
-project(uuidv7pp VERSION 0.1.0 LANGUAGES CXX)
+project(uuid7pp VERSION 0.1.0 LANGUAGES CXX)
 
 include(GNUInstallDirs)
 list(PREPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
@@ -45,16 +45,14 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 find_package(simde REQUIRED)
 
 ## Library Definition (Header-only)
-add_library(uuidv7pp INTERFACE)
-add_library(uuidv7pp::uuidv7pp ALIAS uuidv7pp)
-
-target_include_directories(uuidv7pp INTERFACE
+add_library(uuid7pp INTERFACE)
+add_library(uuid7pp::uuid7pp ALIAS uuid7pp)
+target_include_directories(uuid7pp INTERFACE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
-
-target_link_libraries(uuidv7pp INTERFACE simde::simde)
-target_compile_features(uuidv7pp INTERFACE ${STD_CPP})
+target_link_libraries(uuid7pp INTERFACE simde::simde)
+target_compile_features(uuid7pp INTERFACE ${STD_CPP})
 
 ## Testing
 if(ENABLE_TEST)
@@ -64,35 +62,35 @@ endif()
 
 ## Sample Application
 add_executable(sample sample.cpp)
-target_link_libraries(sample PRIVATE uuidv7pp)
+target_link_libraries(sample PRIVATE uuid7pp)
 
 ## Installation
-install(TARGETS uuidv7pp EXPORT uuidv7ppTargets)
-install(FILES uuidv7pp.hpp DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+install(TARGETS uuid7pp EXPORT uuid7ppTargets)
+install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/uuid7pp.hpp DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 
-install(EXPORT uuidv7ppTargets
-    FILE uuidv7ppTargets.cmake
-    NAMESPACE uuidv7pp::
-    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/uuidv7pp
+install(EXPORT uuid7ppTargets
+    FILE uuid7ppTargets.cmake
+    NAMESPACE uuid7pp::
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/uuid7pp
 )
 
 # Config file for find_package
 include(CMakePackageConfigHelpers)
 configure_package_config_file(
-    "${CMAKE_CURRENT_SOURCE_DIR}/cmake/uuidv7ppConfig.cmake.in"
-    "${CMAKE_CURRENT_BINARY_DIR}/uuidv7ppConfig.cmake"
-    INSTALL_DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/uuidv7pp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/cmake/uuid7ppConfig.cmake.in"
+    "${CMAKE_CURRENT_BINARY_DIR}/uuid7ppConfig.cmake"
+    INSTALL_DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/uuid7pp"
 )
 
 write_basic_package_version_file(
-    "${CMAKE_CURRENT_BINARY_DIR}/uuidv7ppConfigVersion.cmake"
+    "${CMAKE_CURRENT_BINARY_DIR}/uuid7ppConfigVersion.cmake"
     VERSION ${PROJECT_VERSION}
     COMPATIBILITY AnyNewerVersion
 )
 
 install(FILES
-    "${CMAKE_CURRENT_BINARY_DIR}/uuidv7ppConfig.cmake"
-    "${CMAKE_CURRENT_BINARY_DIR}/uuidv7ppConfigVersion.cmake"
+    "${CMAKE_CURRENT_BINARY_DIR}/uuid7ppConfig.cmake"
+    "${CMAKE_CURRENT_BINARY_DIR}/uuid7ppConfigVersion.cmake"
     "${CMAKE_CURRENT_SOURCE_DIR}/cmake/Findsimde.cmake"
-    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/uuidv7pp
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/uuid7pp
 )
