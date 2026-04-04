@@ -41,7 +41,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 ## Dependencies
-find_path(SIMDE_INCLUDE_DIRS "simde/simde-common.h")
+find_package(simde CONFIG REQUIRED)
 
 ## Library Definition (Header-only)
 add_library(uuidv7pp INTERFACE)
@@ -52,10 +52,7 @@ target_include_directories(uuidv7pp INTERFACE
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
 
-# vcpkg等のビルドディレクトリ内のインクルードパスはBUILD_INTERFACEでのみ含める
-if(SIMDE_INCLUDE_DIRS)
-    target_include_directories(uuidv7pp INTERFACE $<BUILD_INTERFACE:${SIMDE_INCLUDE_DIRS}>)
-endif()
+target_link_libraries(uuidv7pp INTERFACE simde::simde)
 
 target_compile_features(uuidv7pp INTERFACE ${STD_CPP})
 

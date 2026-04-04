@@ -1,12 +1,12 @@
 {
   "default-registry": {
     "kind": "builtin",
-    "baseline": "b5d1a94fb7f88fd835e360fd23a45a09ceedbf48"
+    "baseline": "2bf97de0a8af72e345362f1d6ad7f2b8e7df1a08"
   },
   "registries": [
     {
       "kind": "git",
-      "baseline": "d6045d2c85ee25456a87277a40d9930677786cea",
+      "baseline": "94e4a81dd8e9650249fcdd992ef46e1621b3526f",
       "repository": "https://github.com/toge/my-vcpkg-ports",
       "packages": []
     }
