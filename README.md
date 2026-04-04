@@ -48,13 +48,13 @@ int main() {
     // {:n} 小文字・ハイフンなし
     // {:N} 大文字・ハイフンなし
     std::cout << std::format("ID: {:X}\n", id);
-    
+
     // 文字列からのパース (ハイフンの有無を問いません)
     auto const parsed = uuid7pp::from_chars("018E8C8A-EF80-7A00-BF9A-3F1F3A2C4D5E");
     if (parsed) {
         // ...
     }
-    
+
     return 0;
 }
 ```

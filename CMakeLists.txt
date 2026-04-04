@@ -1,7 +1,8 @@
 cmake_minimum_required(VERSION 3.25)
-project(uuidv7pp LANGUAGES CXX)
+project(uuidv7pp VERSION 0.1.0 LANGUAGES CXX)
 
 include(GNUInstallDirs)
+list(PREPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
 ## Options
 option(ENABLE_TEST "Build and run tests" ON)
@@ -41,7 +42,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 ## Dependencies
-find_package(simde CONFIG REQUIRED)
+find_package(simde REQUIRED)
 
 ## Library Definition (Header-only)
 add_library(uuidv7pp INTERFACE)
@@ -53,7 +54,6 @@ target_include_directories(uuidv7pp INTERFACE
 )
 
 target_link_libraries(uuidv7pp INTERFACE simde::simde)
-
 target_compile_features(uuidv7pp INTERFACE ${STD_CPP})
 
 ## Testing
@@ -78,13 +78,21 @@ install(EXPORT uuidv7ppTargets
 
 # Config file for find_package
 include(CMakePackageConfigHelpers)
+configure_package_config_file(
+    "${CMAKE_CURRENT_SOURCE_DIR}/cmake/uuidv7ppConfig.cmake.in"
+    "${CMAKE_CURRENT_BINARY_DIR}/uuidv7ppConfig.cmake"
+    INSTALL_DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/uuidv7pp"
+)
+
 write_basic_package_version_file(
     "${CMAKE_CURRENT_BINARY_DIR}/uuidv7ppConfigVersion.cmake"
-    VERSION 0.1.0
+    VERSION ${PROJECT_VERSION}
     COMPATIBILITY AnyNewerVersion
 )
 
 install(FILES
+    "${CMAKE_CURRENT_BINARY_DIR}/uuidv7ppConfig.cmake"
     "${CMAKE_CURRENT_BINARY_DIR}/uuidv7ppConfigVersion.cmake"
+    "${CMAKE_CURRENT_SOURCE_DIR}/cmake/Findsimde.cmake"
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/uuidv7pp
 )
