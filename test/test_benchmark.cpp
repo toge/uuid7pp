@@ -1,0 +1,47 @@
+#include "catch2/catch_all.hpp"
+#include "uuidv7pp.hpp"
+#include <boost/uuid/uuid.hpp>
+#include <boost/uuid/uuid_generators.hpp>
+#include <boost/uuid/uuid_io.hpp>
+
+TEST_CASE("UUID v7 Benchmark", "[benchmark]") {
+    SECTION("Generation Only") {
+        BENCHMARK("uuid7pp::generate") {
+            return uuid7pp::generator::generate();
+        };
+
+        boost::uuids::time_generator_v7 boost_gen;
+        BENCHMARK("boost::generate") {
+            return boost_gen();
+        };
+    }
+
+    SECTION("String Conversion (std::string)") {
+        auto const u = uuid7pp::generator::generate();
+        
+        BENCHMARK("uuid7pp::to_string") {
+            return uuid7pp::to_string(u);
+        };
+
+        boost::uuids::time_generator_v7 boost_gen;
+        auto const bu = boost_gen();
+        BENCHMARK("boost::to_string") {
+            return boost::uuids::to_string(bu);
+        };
+    }
+
+    SECTION("Low-level string conversion (to_chars / etc)") {
+        auto const u = uuid7pp::generator::generate();
+        char buf[36];
+
+        BENCHMARK("uuid7pp::to_chars (zero-alloc)") {
+            uuid7pp::to_chars(u, buf);
+            return buf[0];
+        };
+        
+        BENCHMARK("uuid7pp::to_chars (no-hyphen, zero-alloc)") {
+            uuid7pp::to_chars(u, buf, false);
+            return buf[0];
+        };
+    }
+}
