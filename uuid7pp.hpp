@@ -17,7 +17,7 @@
 /**
  * @namespace uuid7pp
  * @brief 極限まで最適化されたUUID v7生成・変換ライブラリ
- * 
+ *
  * SIMD (SSSE3/SSE4.1) を活用し、RFC 9562 準拠の UUID v7 を高速に生成・変換します。
  */
 namespace uuid7pp {
@@ -105,10 +105,10 @@ static inline auto hex_to_nibble_simd(simde__m128i v) noexcept -> simde__m128i {
   auto const mask_num{simde_mm_and_si128(simde_mm_cmplt_epi8(v, simde_mm_set1_epi8('9' + 1)),
                                          simde_mm_cmpgt_epi8(v, simde_mm_set1_epi8('0' - 1)))};
   auto const v_num{simde_mm_sub_epi8(v, simde_mm_set1_epi8('0'))};
-  
+
   auto const v_lower{simde_mm_or_si128(v, simde_mm_set1_epi8(0x20))};
   auto const v_alpha{simde_mm_sub_epi8(v_lower, simde_mm_set1_epi8('a' - 10))};
-  
+
   return simde_mm_blendv_epi8(v_alpha, v_num, mask_num);
 }
 } // namespace detail
@@ -180,7 +180,7 @@ public:
 
   /**
    * @brief 指定したミリ秒タイムスタンプでUUID v7を生成する
-   * 
+   *
    * 同一時刻の呼び出しに対しては、スレッドローカルなカウンタをインクリメントして単調増加性を維持します。
    * @param ms UNIXタイムスタンプ (ミリ秒)
    * @return 生成されたUUID
@@ -209,9 +209,9 @@ public:
 
 /**
  * @brief UUIDをバッファに直接書き込む (メモリ割当なしの超高速版)
- * 
+ *
  * 36文字(ハイフンあり)または32文字(ハイフンなし)を書き込みます。ヌル終端は行いません。
- * 
+ *
  * @param u 変換対象のUUID
  * @param out 書き込み先のバッファ (最低36バイトの空きが必要)
  * @param hyphen ハイフン ('-') を挿入するかどうか。デフォルトはtrue。
@@ -220,8 +220,8 @@ public:
 static inline auto to_chars(uuid const& u, char* out, bool const hyphen = true, bool const upper = false) noexcept -> void {
   auto const in{simde_mm_load_si128(reinterpret_cast<simde__m128i const*>(u.data.data()))};
   auto const mask{simde_mm_set1_epi8(0x0F)};
-  
-  simde__m128i const table = upper 
+
+  simde__m128i const table = upper
     ? simde_mm_setr_epi8('0','1','2','3','4','5','6','7','8','9','A','B','C','D','E','F')
     : simde_mm_setr_epi8('0','1','2','3','4','5','6','7','8','9','a','b','c','d','e','f');
 
@@ -253,10 +253,10 @@ static inline auto to_chars(uuid const& u, char* out, bool const hyphen = true, 
 
 /**
  * @brief 文字列からUUIDをパースする (SIMD高速化版)
- * 
+ *
  * 36文字(ハイフンあり)および32文字(ハイフンなし)の両形式に対応します。
  * 大文字・小文字を区別しません。
- * 
+ *
  * @param s パース対象の文字列
  * @return パース成功時はUUID、失敗時(形式不正や無効な文字)はstd::nullopt
  */
@@ -297,6 +297,28 @@ static inline auto from_chars(std::string_view s) noexcept -> std::optional<uuid
 }
 
 /**
+ * @brief UUIDのバージョンを取得する
+ * @param u 対象のUUID
+ * @return バージョン番号 (0-15)
+ * @note RFC 9562 Section 4.2: バージョンは `time_hi_and_version` フィールド (data[6]) の上位4ビットに格納されます。
+ */
+[[nodiscard]] constexpr auto get_version(uuid const& u) noexcept -> uint8_t {
+  return static_cast<uint8_t>(u.data[6] >> 4);
+}
+
+/**
+ * @brief UUIDがバージョン7かつRFC 4122/9562バリアントであるかを確認する
+ * @param u 対象のUUID
+ * @return UUID v7であればtrue
+ * @note RFC 9562 Section 4.1 & 4.2:
+ *       - Version: 7 (0b0111)
+ *       - Variant: 0b10 (RFC 4122) は `clock_seq_hi_and_reserved` (data[8]) の上位2ビットに格納されます。
+ */
+[[nodiscard]] constexpr auto is_v7(uuid const& u) noexcept -> bool {
+  return (get_version(u) == 7) && ((u.data[8] & 0xc0) == 0x80);
+}
+
+/**
  * @brief UUIDからミリ秒タイムスタンプを復元する
  * @param u 復元対象のUUID
  * @return 復元されたタイムスタンプ (std::chrono::system_clock::time_point)
@@ -327,7 +349,7 @@ inline auto to_string(uuid const& u, bool const hyphen = true, bool const upper 
 
 /**
  * @brief std::hash の uuid7pp::uuid に対する特殊化
- * 
+ *
  * 128ビットのデータを MurmurHash3 スタイルの手法でマージし、高速なハッシュ値を生成します。
  */
 template <>
@@ -348,13 +370,13 @@ struct std::hash<uuid7pp::uuid> {
 
 /**
  * @brief std::formatter の uuid7pp::uuid に対する特殊化 (C++20/23対応)
- * 
+ *
  * 使用可能な書式指定子:
  * - `{:x}` : 小文字、ハイフンあり (デフォルト)
  * - `{:X}` : 大文字、ハイフンあり
  * - `{:n}` : 小文字、ハイフンなし
  * - `{:N}` : 大文字、ハイフンなし
- * 
+ *
  * 例: `std::print("{:X}", id);`
  */
 template <>

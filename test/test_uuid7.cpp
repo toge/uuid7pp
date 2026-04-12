@@ -21,7 +21,7 @@ TEST_CASE("UUID v7 Generation", "[uuid]") {
     }
 
     SECTION("Generate at specific time") {
-        uint64_t const ts = 1704067200000;
+        uint64_t const ts = 1000000;
         auto const u = uuid7pp::generator::generate_at(ts);
         
         uint64_t extracted_ts = 0;
@@ -59,6 +59,32 @@ TEST_CASE("UUID v7 Generation", "[uuid]") {
         auto const extracted_known{uuid7pp::extract_timestamp(*u_known)};
         auto const ms_known{std::chrono::duration_cast<std::chrono::milliseconds>(extracted_known.time_since_epoch()).count()};
         CHECK(ms_known == 1645557742000ULL);
+    }
+
+    SECTION("Version and Variant") {
+        auto const u = uuid7pp::generator::generate();
+        CHECK(uuid7pp::get_version(u) == 7);
+        CHECK(uuid7pp::is_v7(u) == true);
+
+        // v4 UUID: 550e8400-e29b-41d4-a716-446655440000
+        auto const u4 = uuid7pp::from_chars("550e8400-e29b-41d4-a716-446655440000");
+        REQUIRE(u4.has_value());
+        CHECK(uuid7pp::get_version(*u4) == 4);
+        CHECK(uuid7pp::is_v7(*u4) == false);
+
+        // Nil UUID
+        uuid7pp::uuid const nil_u{.data = {0}};
+        CHECK(uuid7pp::get_version(nil_u) == 0);
+        CHECK(uuid7pp::is_v7(nil_u) == false);
+
+        // constexpr evaluation
+        constexpr uuid7pp::uuid const c_u{.data = {0x01,0x02,0x03,0x04,0x05,0x06,0x71,0x08,0x89,0x0a,0x0b,0x0c,0x0d,0x0e,0x0f,0x10}};
+        static_assert(uuid7pp::get_version(c_u) == 7);
+        static_assert(uuid7pp::is_v7(c_u) == true);
+        
+        constexpr uuid7pp::uuid const c_nil{.data = {0}};
+        static_assert(uuid7pp::get_version(c_nil) == 0);
+        static_assert(uuid7pp::is_v7(c_nil) == false);
     }
 }
 
