@@ -33,6 +33,33 @@ TEST_CASE("UUID v7 Generation", "[uuid]") {
         auto const u2 = uuid7pp::generator::generate_at(ts);
         CHECK(u.data < u2.data);
     }
+
+    SECTION("Extract timestamp") {
+        auto const now{std::chrono::system_clock::now()};
+        auto const u{uuid7pp::generator::generate()};
+        auto const extracted{uuid7pp::extract_timestamp(u)};
+        
+        // 1. generate() で生成した UUID から extract_timestamp() した結果が、
+        //    生成時刻と 2ms 以内の誤差に収まること
+        auto const diff{std::chrono::abs(std::chrono::duration_cast<std::chrono::milliseconds>(extracted - now))};
+        CHECK(diff.count() <= 2);
+
+        // 2. generate_at(tp) で特定時刻を指定した UUID から復元した時刻が tp と完全一致すること
+        // (ミリ秒精度での比較)
+        auto const tp{std::chrono::system_clock::time_point{std::chrono::milliseconds{1234567890123}}};
+        auto const u_at{uuid7pp::generator::generate_at(tp)};
+        CHECK(uuid7pp::extract_timestamp(u_at) == tp);
+
+        // 3. from_chars でパースした既知の UUID 文字列からタイムスタンプが正しく復元されること
+        // RFC 9562 example: 017f22e2-79b0-7cc3-98c4-dc0c0c07398f
+        // unix_ts_ms: 0x017F22E279B0 (1645557742000)
+        auto const s_known{"017f22e2-79b0-7cc3-98c4-dc0c0c07398f"};
+        auto const u_known{uuid7pp::from_chars(s_known)};
+        REQUIRE(u_known.has_value());
+        auto const extracted_known{uuid7pp::extract_timestamp(*u_known)};
+        auto const ms_known{std::chrono::duration_cast<std::chrono::milliseconds>(extracted_known.time_since_epoch()).count()};
+        CHECK(ms_known == 1645557742000ULL);
+    }
 }
 
 TEST_CASE("UUID Conversion and Formatting", "[uuid]") {

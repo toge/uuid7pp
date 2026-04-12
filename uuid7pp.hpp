@@ -229,8 +229,8 @@ static inline auto to_chars(uuid const& u, char* out, bool const hyphen = true, 
   auto const high{simde_mm_and_si128(simde_mm_srli_epi16(in, 4), mask)};
   auto const hex_low{simde_mm_shuffle_epi8(table, low)};
   auto const hex_high{simde_mm_shuffle_epi8(table, high)};
-  auto const res1{simde_mm_unpacklo_epi8(hex_low, hex_high)};
-  auto const res2{simde_mm_unpackhi_epi8(hex_low, hex_high)};
+  auto const res1{simde_mm_unpacklo_epi8(hex_high, hex_low)};
+  auto const res2{simde_mm_unpackhi_epi8(hex_high, hex_low)};
 
   alignas(16) char tmp[32];
   simde_mm_storeu_si128(reinterpret_cast<simde__m128i*>(tmp), res1);
@@ -294,6 +294,20 @@ static inline auto from_chars(std::string_view s) noexcept -> std::optional<uuid
     res.data[i] = static_cast<uint8_t>((nibbles[i * 2] << 4) | nibbles[i * 2 + 1]);
   }
   return res;
+}
+
+/**
+ * @brief UUIDからミリ秒タイムスタンプを復元する
+ * @param u 復元対象のUUID
+ * @return 復元されたタイムスタンプ (std::chrono::system_clock::time_point)
+ */
+[[nodiscard]] static inline auto extract_timestamp(uuid const& u) noexcept
+    -> std::chrono::system_clock::time_point {
+  auto ms{0ULL};
+  for (auto i{0}; i < 6; ++i) {
+    ms = (ms << 8) | u.data[i];
+  }
+  return std::chrono::system_clock::time_point{std::chrono::milliseconds{ms}};
 }
 
 /**
