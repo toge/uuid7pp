@@ -1,4 +1,8 @@
 #include <set>
+#include <map>
+#include <vector>
+#include <algorithm>
+#include <random>
 #include <unordered_set>
 #include <regex>
 #include <format>
@@ -21,7 +25,7 @@ TEST_CASE("UUID v7 Generation", "[uuid]") {
     }
 
     SECTION("Generate at specific time") {
-        uint64_t const ts = 1000000;
+        uint64_t const ts = 2000000000000ULL; // 2033-05-18
         auto const u = uuid7pp::generator::generate_at(ts);
         
         uint64_t extracted_ts = 0;
@@ -136,5 +140,72 @@ TEST_CASE("UUID Container Integration", "[uuid]") {
         
         CHECK(set.size() == 2);
         CHECK(set.contains(u1));
+    }
+}
+
+TEST_CASE("UUID Comparison and Ordering", "[uuid]") {
+    SECTION("Three-way comparison and strong ordering") {
+        auto const u1 = uuid7pp::from_chars("0185966b-4e6a-7000-8000-000000000000").value();
+        auto const u2 = uuid7pp::from_chars("0185966b-4e6a-7000-8000-000000000001").value();
+        auto const u1_again = u1;
+
+        CHECK((u1 <=> u2) == std::strong_ordering::less);
+        CHECK((u2 <=> u1) == std::strong_ordering::greater);
+        CHECK((u1 <=> u1_again) == std::strong_ordering::equal);
+        
+        // Relational operators derived from <=>
+        CHECK(u1 < u2);
+        CHECK(u1 <= u2);
+        CHECK(u2 > u1);
+        CHECK(u2 >= u1);
+        CHECK(!(u1 > u2));
+        CHECK(u1 <= u1_again);
+        CHECK(u1 >= u1_again);
+    }
+
+    SECTION("Time-sequential sorting") {
+        std::vector<uuid7pp::uuid> uuids;
+        // Generate UUIDs with explicit increasing timestamps
+        uuids.push_back(uuid7pp::generator::generate_at(1000));
+        uuids.push_back(uuid7pp::generator::generate_at(2000));
+        uuids.push_back(uuid7pp::generator::generate_at(3000));
+
+        auto original = uuids;
+        std::shuffle(uuids.begin(), uuids.end(), std::mt19937{std::random_device{}()});
+        std::sort(uuids.begin(), uuids.end());
+
+        CHECK(uuids == original);
+    }
+
+    SECTION("std::map as key") {
+        std::map<uuid7pp::uuid, int> m;
+        auto const u1 = uuid7pp::generator::generate_at(1000);
+        auto const u2 = uuid7pp::generator::generate_at(2000);
+        
+        m[u1] = 1;
+        m[u2] = 2;
+        
+        CHECK(m.size() == 2);
+        CHECK(m[u1] == 1);
+        CHECK(m[u2] == 2);
+    }
+
+    SECTION("Binary search with std::lower_bound") {
+        std::vector<uuid7pp::uuid> uuids;
+        for (uint64_t ts = 1000; ts <= 5000; ts += 1000) {
+            uuids.push_back(uuid7pp::generator::generate_at(ts));
+        }
+
+        // Search for UUID at or after 2500ms
+        auto const target_ts = 2500ULL;
+        // Create a search key (Nil UUID with specific timestamp)
+        uuid7pp::uuid search_key{.data = {}};
+        for (int i = 0; i < 6; ++i) {
+            search_key.data[i] = static_cast<uint8_t>((target_ts >> (8 * (5 - i))) & 0xFF);
+        }
+
+        auto it = std::lower_bound(uuids.begin(), uuids.end(), search_key);
+        REQUIRE(it != uuids.end());
+        CHECK(uuid7pp::extract_timestamp(*it) == std::chrono::system_clock::time_point{std::chrono::milliseconds{3000}});
     }
 }

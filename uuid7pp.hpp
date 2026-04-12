@@ -4,6 +4,7 @@
 #include <array>
 #include <bit>
 #include <chrono>
+#include <compare>
 #include <random>
 #include <string>
 #include <string_view>
@@ -71,12 +72,14 @@ struct alignas(16) [[nodiscard]] uuid {
   }
 
   /**
-   * @brief 大小比較演算子
+   * @brief 三方比較演算子 (C++20)
    * @param other 比較対象のUUID
-   * @return このUUIDの方が小さい場合true (タイムスタンプ順の比較に有効)
+   * @return 比較結果 (std::strong_ordering)
+   * @note UUID v7 は最上位バイトから順にタイムスタンプ、バージョン、カウンタ、エントロピーが格納されているため、
+   *       辞書順比較はそのまま時系列順の比較となります。
    */
-  auto operator<(uuid const& other) const noexcept -> bool {
-    return data < other.data;
+  auto operator<=>(uuid const& other) const noexcept -> std::strong_ordering {
+    return data <=> other.data;
   }
 };
 
