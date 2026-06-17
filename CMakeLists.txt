@@ -5,7 +5,8 @@ include(GNUInstallDirs)
 list(PREPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
 ## Options
-option(ENABLE_TEST "Build and run tests" ON)
+option(BUILD_TEST "Build tests" ON)
+option(BUILD_SAMPLE "Build sample" ON)
 option(STATIC "static binary for sample" OFF)
 
 ## C++ Standard selection
@@ -55,14 +56,16 @@ target_link_libraries(uuid7pp INTERFACE simde::simde)
 target_compile_features(uuid7pp INTERFACE ${STD_CPP})
 
 ## Testing
-if(ENABLE_TEST)
+if(BUILD_TEST)
     enable_testing()
     add_subdirectory(test)
 endif()
 
 ## Sample Application
-add_executable(sample sample.cpp)
-target_link_libraries(sample PRIVATE uuid7pp)
+if(BUILD_SAMPLE)
+    add_executable(sample sample.cpp)
+    target_link_libraries(sample PRIVATE uuid7pp)
+endif()
 
 ## Installation
 install(TARGETS uuid7pp EXPORT uuid7ppTargets)
