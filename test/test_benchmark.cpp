@@ -4,6 +4,10 @@
 #include <boost/uuid/uuid_generators.hpp>
 #include <boost/uuid/uuid_io.hpp>
 
+static auto const bench_uuid = uuid7pp::generator::generate();
+static auto const bench_str_hyphen = uuid7pp::to_string(bench_uuid);
+static auto const bench_str_plain = uuid7pp::to_string(bench_uuid, false);
+
 TEST_CASE("UUID v7 Benchmark", "[benchmark]") {
     SECTION("Generation Only") {
         BENCHMARK("uuid7pp::generate") {
@@ -42,6 +46,22 @@ TEST_CASE("UUID v7 Benchmark", "[benchmark]") {
         BENCHMARK("uuid7pp::to_chars (no-hyphen, zero-alloc)") {
             uuid7pp::to_chars(u, buf, false);
             return buf[0];
+        };
+    }
+
+    SECTION("Parse from chars") {
+        BENCHMARK("uuid7pp::from_chars (hyphen)") {
+            return uuid7pp::from_chars(bench_str_hyphen);
+        };
+
+        BENCHMARK("uuid7pp::from_chars (plain)") {
+            return uuid7pp::from_chars(bench_str_plain);
+        };
+    }
+
+    SECTION("Timestamp extraction") {
+        BENCHMARK("uuid7pp::extract_timestamp") {
+            return uuid7pp::extract_timestamp(bench_uuid);
         };
     }
 }
