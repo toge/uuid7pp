@@ -34,9 +34,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup vcpkg
+      - name: Setup vcpkg (Linux/macOS)
+        if: matrix.os != 'windows-latest'
         run: |
           echo "VCPKG_ROOT=$VCPKG_INSTALLATION_ROOT" >> $GITHUB_ENV
+
+      - name: Setup vcpkg (Windows)
+        if: matrix.os == 'windows-latest'
+        uses: lukka/run-vcpkg@v11
+        with:
+          vcpkgGitSetupUrl: 'https://github.com/microsoft/vcpkg'
+          vcpkgDirectory: '${{ github.workspace }}/vcpkg'
 
       - name: Restore vcpkg artifacts from cache
         uses: actions/cache@v4
