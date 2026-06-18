@@ -60,6 +60,7 @@ jobs:
         env:
           CC: ${{ matrix.cc }}
           CXX: ${{ matrix.cxx }}
+        shell: bash
         run: |
           cmake -B build \
             -DCMAKE_TOOLCHAIN_FILE=${{ env.VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake \
@@ -67,9 +68,11 @@ jobs:
             -DCMAKE_BUILD_TYPE=Release
 
       - name: Build
+        shell: bash
         run: cmake --build build --config Release
 
       - name: Run Tests
+        shell: bash
         run: |
           cd build
           ctest -C Release --output-on-failure
