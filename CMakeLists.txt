@@ -10,16 +10,13 @@ option(BUILD_SAMPLE "Build sample" ON)
 option(STATIC "static binary for sample" OFF)
 
 ## C++ Standard selection
-include(CheckCXXCompilerFlag)
-CHECK_CXX_COMPILER_FLAG("-std=c++26" COMPILER_SUPPORTS_CXX26)
-CHECK_CXX_COMPILER_FLAG("-std=c++23" COMPILER_SUPPORTS_CXX23)
-if(COMPILER_SUPPORTS_CXX26)
-    set(STD_CPP cxx_std_26)
-elseif(COMPILER_SUPPORTS_CXX23)
-    set(STD_CPP cxx_std_23)
-else()
-    message(FATAL_ERROR "The compiler ${CMAKE_CXX_COMPILER} has no C++23 support. C++23 or higher is required.")
+set(CMAKE_CXX_STANDARD 23)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /std:c++latest")
 endif()
+set(STD_CPP cxx_std_23)
 
 ## Optimization and Warning flags
 if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
