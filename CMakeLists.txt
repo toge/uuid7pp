@@ -16,7 +16,6 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /std:c++latest")
 endif()
-set(STD_CPP cxx_std_23)
 
 ## Optimization and Warning flags
 if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
@@ -53,7 +52,7 @@ target_include_directories(uuid7pp INTERFACE
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
 target_link_libraries(uuid7pp INTERFACE simde::simde)
-target_compile_features(uuid7pp INTERFACE ${STD_CPP})
+target_compile_features(uuid7pp INTERFACE cxx_std_23)
 
 ## Testing
 if(BUILD_TEST)
