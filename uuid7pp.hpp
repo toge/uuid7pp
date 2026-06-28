@@ -110,6 +110,41 @@ static inline auto hex_to_nibble_simd(simde__m128i v) noexcept -> simde__m128i {
 
   return simde_mm_blendv_epi8(v_alpha, v_num, mask_num);
 }
+
+template <bool Upper, bool Hyphen>
+static inline auto to_chars_impl(uuid const& u, char* out) noexcept -> void {
+  auto const in{simde_mm_load_si128(reinterpret_cast<simde__m128i const*>(u.data.data()))};
+  auto const mask{simde_mm_set1_epi8(0x0F)};
+
+  simde__m128i const table = Upper
+    ? simde_mm_setr_epi8('0','1','2','3','4','5','6','7','8','9','A','B','C','D','E','F')
+    : simde_mm_setr_epi8('0','1','2','3','4','5','6','7','8','9','a','b','c','d','e','f');
+
+  auto const low{simde_mm_and_si128(in, mask)};
+  auto const high{simde_mm_and_si128(simde_mm_srli_epi16(in, 4), mask)};
+  auto const hex_low{simde_mm_shuffle_epi8(table, low)};
+  auto const hex_high{simde_mm_shuffle_epi8(table, high)};
+  auto const res1{simde_mm_unpacklo_epi8(hex_high, hex_low)};
+  auto const res2{simde_mm_unpackhi_epi8(hex_high, hex_low)};
+
+  alignas(16) char tmp[32];
+  simde_mm_storeu_si128(reinterpret_cast<simde__m128i*>(tmp), res1);
+  simde_mm_storeu_si128(reinterpret_cast<simde__m128i*>(tmp + 16), res2);
+
+  if constexpr (Hyphen) {
+    std::copy_n(tmp, 8, out);
+    out[8] = '-';
+    std::copy_n(tmp + 8, 4, out + 9);
+    out[13] = '-';
+    std::copy_n(tmp + 12, 4, out + 14);
+    out[18] = '-';
+    std::copy_n(tmp + 16, 4, out + 19);
+    out[23] = '-';
+    std::copy_n(tmp + 20, 12, out + 24);
+  } else {
+    std::copy_n(tmp, 32, out);
+  }
+}
 } // namespace detail
 
 /**

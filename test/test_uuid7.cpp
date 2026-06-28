@@ -209,3 +209,31 @@ TEST_CASE("UUID Comparison and Ordering", "[uuid]") {
         CHECK(uuid7pp::extract_timestamp(*it) == std::chrono::system_clock::time_point{std::chrono::milliseconds{3000}});
     }
 }
+
+TEST_CASE("NTTP to_chars_impl<Upper,Hyphen> matches existing to_chars", "[nttp][refactor]") {
+    auto const u = uuid7pp::generator::generate();
+
+    char buf_existing[36];
+    char buf_impl[36];
+
+    SECTION("Upper=false, Hyphen=true") {
+        uuid7pp::to_chars(u, buf_existing, true, false);
+        uuid7pp::detail::to_chars_impl<false, true>(u, buf_impl);
+        CHECK(std::string_view(buf_existing, 36) == std::string_view(buf_impl, 36));
+    }
+    SECTION("Upper=true, Hyphen=true") {
+        uuid7pp::to_chars(u, buf_existing, true, true);
+        uuid7pp::detail::to_chars_impl<true, true>(u, buf_impl);
+        CHECK(std::string_view(buf_existing, 36) == std::string_view(buf_impl, 36));
+    }
+    SECTION("Upper=false, Hyphen=false (32 bytes)") {
+        uuid7pp::to_chars(u, buf_existing, false, false);
+        uuid7pp::detail::to_chars_impl<false, false>(u, buf_impl);
+        CHECK(std::string_view(buf_existing, 32) == std::string_view(buf_impl, 32));
+    }
+    SECTION("Upper=true, Hyphen=false (32 bytes)") {
+        uuid7pp::to_chars(u, buf_existing, false, true);
+        uuid7pp::detail::to_chars_impl<true, false>(u, buf_impl);
+        CHECK(std::string_view(buf_existing, 32) == std::string_view(buf_impl, 32));
+    }
+}
