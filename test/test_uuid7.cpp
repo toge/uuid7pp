@@ -237,3 +237,32 @@ TEST_CASE("NTTP to_chars_impl<Upper,Hyphen> matches existing to_chars", "[nttp][
         CHECK(std::string_view(buf_existing, 32) == std::string_view(buf_impl, 32));
     }
 }
+
+TEST_CASE("NTTP from_chars_impl<ExpectHyphen> matches existing from_chars", "[nttp][refactor]") {
+    auto const u = uuid7pp::generator::generate();
+    auto const s_hyphen = uuid7pp::to_string(u, true, false);
+    auto const s_plain  = uuid7pp::to_string(u, false, false);
+
+    SECTION("ExpectHyphen=true") {
+        auto const a = uuid7pp::from_chars(s_hyphen);
+        auto const b = uuid7pp::detail::from_chars_impl<true>(s_hyphen);
+        REQUIRE(a.has_value());
+        REQUIRE(b.has_value());
+        CHECK(*a == *b);
+    }
+    SECTION("ExpectHyphen=false") {
+        auto const a = uuid7pp::from_chars(s_plain);
+        auto const b = uuid7pp::detail::from_chars_impl<false>(s_plain);
+        REQUIRE(a.has_value());
+        REQUIRE(b.has_value());
+        CHECK(*a == *b);
+    }
+    SECTION("ExpectHyphen=true with plain input returns nullopt") {
+        auto const b = uuid7pp::detail::from_chars_impl<true>(s_plain);
+        CHECK_FALSE(b.has_value());
+    }
+    SECTION("ExpectHyphen=false with hyphen input returns nullopt (length mismatch)") {
+        auto const b = uuid7pp::detail::from_chars_impl<false>(s_hyphen);
+        CHECK_FALSE(b.has_value());
+    }
+}
