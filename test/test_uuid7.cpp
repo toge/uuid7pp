@@ -266,3 +266,17 @@ TEST_CASE("NTTP from_chars_impl<ExpectHyphen> matches existing from_chars", "[nt
         CHECK_FALSE(b.has_value());
     }
 }
+
+TEST_CASE("extract_timestamp_fast matches extract_timestamp", "[perf][timestamp]") {
+    auto const u = uuid7pp::generator::generate();
+    auto const fast = uuid7pp::extract_timestamp_fast(u);
+    auto const tp = uuid7pp::extract_timestamp(u);
+    auto const ms_existing = static_cast<uint64_t>(
+        std::chrono::duration_cast<std::chrono::milliseconds>(tp.time_since_epoch()).count());
+    CHECK(fast == ms_existing);
+
+    // 既知 UUID (RFC 9562 example)
+    auto const known = uuid7pp::from_chars("017f22e2-79b0-7cc3-98c4-dc0c0c07398f");
+    REQUIRE(known.has_value());
+    CHECK(uuid7pp::extract_timestamp_fast(*known) == 1645557742000ULL);
+}

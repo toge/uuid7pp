@@ -368,6 +368,18 @@ constexpr auto is_v7(uuid const& u) noexcept -> bool {
 }
 
 /**
+ * @brief UUIDからミリ秒タイムスタンプを高速に抽出する (bare uint64_t)
+ * @param u 抽出対象のUUID
+ * @return ミリ秒単位のUnixタイムスタンプ (上位48bit)
+ */
+[[nodiscard]]
+inline auto extract_timestamp_fast(uuid const& u) noexcept -> uint64_t {
+    uint64_t v;
+    std::memcpy(&v, u.data.data(), sizeof(v));
+    return __builtin_bswap64(v) >> 16;
+}
+
+/**
  * @brief UUIDからミリ秒タイムスタンプを復元する
  * @param u 復元対象のUUID
  * @return 復元されたタイムスタンプ (std::chrono::system_clock::time_point)
