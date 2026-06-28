@@ -27,11 +27,19 @@
 
 ## Phase 2: to_chars/from_chars SIMD 強化
 
+ベースライン commit: `98ad978` (Phase 1 終了)
+
 | 計測項目 | Baseline (Phase1 HEAD) | Improved (Phase2 HEAD) | Speedup |
 |----------|------------------------|------------------------|---------|
-| (Phase 2 終了時に記入) | | | |
+| uuid7pp::generate | 26.99 | 27.00 | 1.00x |
+| uuid7pp::to_string | 9.62 | 10.08 | 0.95x |
+| uuid7pp::to_chars (hyphen) | 3.02 | 2.51 | **1.20x** |
+| uuid7pp::to_chars (no-hyphen) | 8.07 | 8.23 | 0.98x |
+| uuid7pp::from_chars (hyphen) | 8.11 | 8.24 | 0.98x |
+| uuid7pp::from_chars (plain) | 2.58 | 2.62 | 0.98x |
+| uuid7pp::extract_timestamp | 0.68 | 0.68 | 1.00x |
 
-判定: TBD
+判定: **PASS** (to_chars は memcpy 化で改善。from_chars の memcpy 化は劣化のため revert 済み。他 ±5% 以内)
 
 ---
 

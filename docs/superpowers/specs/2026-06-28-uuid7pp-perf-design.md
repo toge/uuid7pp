@@ -281,7 +281,8 @@ inline auto extract_timestamp_fast(uuid const& u) noexcept -> uint64_t;
 | Phase | 対象 | 代表ベンチ項目 | ベースライン ns | 改善後 ns | 倍率 | 採用/不採用 | 備考 |
 |-------|------|--------------|----------------|-----------|------|------------|------|
 | 1 | NTTP テンプレ化 (機能不変) | from_chars(hyphen) | 8.83 | 7.98 | 1.11x | 採用 | from_chars のみインライン版に戻した (NTTP ラッパが劣化したため)。detail:: テンプレートは残し、public API は元のインライン実装を維持。 |
-| 2-5 | (後続 Phase) | | | | | | |
+| 2 | to_chars memcpy 化 | to_chars(hyphen) | 3.02 | 2.51 | 1.20x | 採用 | from_chars の memcpy 化は劣化のため revert 済み。 |
+| 3-5 | (後続 Phase) | | | | | | |
 
 ## 11. 参考リンク
 
