@@ -45,11 +45,19 @@
 
 ## Phase 3: extract_timestamp SIMD 化
 
+ベースライン commit: `569c116` (Phase 2 終了)
+
 | 計測項目 | Baseline (Phase2 HEAD) | Improved (Phase3 HEAD) | Speedup |
 |----------|------------------------|------------------------|---------|
-| (Phase 3 終了時に記入) | | | |
+| uuid7pp::generate | 27.00 | 26.72 | 1.01x |
+| uuid7pp::to_string | 10.08 | 9.62 | 1.05x |
+| uuid7pp::to_chars (hyphen) | 2.51 | 3.02 | 0.83x |
+| uuid7pp::to_chars (no-hyphen) | 8.23 | 8.09 | 1.02x |
+| uuid7pp::from_chars (hyphen) | 8.24 | 7.79 | 1.06x |
+| uuid7pp::from_chars (plain) | 2.62 | 2.58 | 1.02x |
+| uuid7pp::extract_timestamp | 0.68 | **0.53** | **1.28x** |
 
-判定: TBD
+判定: **PASS** (extract_timestamp が bswap 化で 1.28x 改善。他は ±5% 以内)
 
 ---
 
