@@ -311,13 +311,16 @@ static inline auto from_chars(std::string_view s) noexcept -> std::optional<uuid
   alignas(16) char clean[32];
   if (s.length() == 36) {
     if (s[8] != '-' || s[13] != '-' || s[18] != '-' || s[23] != '-') [[unlikely]] return std::nullopt;
-    std::memcpy(clean, s.data(), 8);
-    std::memcpy(clean + 8, s.data() + 9, 4);
-    std::memcpy(clean + 12, s.data() + 14, 4);
-    std::memcpy(clean + 16, s.data() + 19, 4);
-    std::memcpy(clean + 20, s.data() + 24, 12);
+    auto const copy_hex = [&](int src_off, int dst_off, int len) {
+      for(int i=0; i<len; ++i) clean[dst_off + i] = s[src_off + i];
+    };
+    copy_hex(0, 0, 8);
+    copy_hex(9, 8, 4);
+    copy_hex(14, 12, 4);
+    copy_hex(19, 16, 4);
+    copy_hex(24, 20, 12);
   } else if (s.length() == 32) {
-    std::memcpy(clean, s.data(), 32);
+    std::copy_n(s.data(), 32, clean);
   } else {
     return std::nullopt;
   }
