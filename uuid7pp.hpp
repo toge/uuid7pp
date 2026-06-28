@@ -276,6 +276,30 @@ public:
 
     return pack(st.last_ms, st.counter, st.rng.next());
   }
+
+  static inline auto generate_batch(uuid* out, std::size_t n) noexcept -> std::size_t {
+    if (n == 0) return 0;
+    auto& st{tls_state};
+    if (!st.initialized) [[unlikely]] initialize(st);
+
+    auto const now{std::chrono::system_clock::now()};
+    auto ms{static_cast<uint64_t>(
+        std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count())};
+
+    if (ms > st.last_ms) [[likely]] {
+      st.last_ms = ms;
+      st.counter = static_cast<uint16_t>(st.rng.next() & 0x03FF);
+    } else if (ms < st.last_ms) {
+      st.last_ms = ms;
+      st.counter = static_cast<uint16_t>(st.rng.next() & 0x03FF);
+    }
+
+    for (std::size_t i = 0; i < n; ++i) {
+      out[i] = pack(st.last_ms, st.counter, st.rng.next());
+      if (st.counter < 0x0FFF) [[likely]] ++st.counter;
+    }
+    return n;
+  }
 };
 
 /**

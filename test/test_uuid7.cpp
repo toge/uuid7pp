@@ -267,6 +267,33 @@ TEST_CASE("NTTP from_chars_impl<ExpectHyphen> matches existing from_chars", "[nt
     }
 }
 
+TEST_CASE("generator::generate_batch basic", "[perf][batch]") {
+    constexpr std::size_t N = 100;
+    alignas(16) uuid7pp::uuid buf[N];
+    auto const count = uuid7pp::generator::generate_batch(buf, N);
+    CHECK(count == N);
+
+    std::unordered_set<uuid7pp::uuid> set;
+    for (std::size_t i = 0; i < N; ++i) set.insert(buf[i]);
+    CHECK(set.size() == N);
+}
+
+TEST_CASE("generator::generate_batch edge cases", "[perf][batch]") {
+    alignas(16) uuid7pp::uuid buf[1];
+    CHECK(uuid7pp::generator::generate_batch(buf, 0) == 0);
+    CHECK(uuid7pp::generator::generate_batch(buf, 1) == 1);
+    CHECK(buf[0].data[6] >> 4 == 7);  // v7
+}
+
+TEST_CASE("generator::generate_batch monotonicity", "[perf][batch]") {
+    constexpr std::size_t N = 100;
+    alignas(16) uuid7pp::uuid buf[N];
+    uuid7pp::generator::generate_batch(buf, N);
+    for (std::size_t i = 1; i < N; ++i) {
+        CHECK(buf[i - 1].data < buf[i].data);
+    }
+}
+
 TEST_CASE("extract_timestamp_fast matches extract_timestamp", "[perf][timestamp]") {
     auto const u = uuid7pp::generator::generate();
     auto const fast = uuid7pp::extract_timestamp_fast(u);
