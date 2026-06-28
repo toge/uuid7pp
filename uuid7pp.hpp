@@ -307,39 +307,9 @@ static inline auto to_chars(uuid const& u, char* out, bool const hyphen = true, 
  * @return パース成功時はUUID、失敗時(形式不正や無効な文字)はstd::nullopt
  */
 static inline auto from_chars(std::string_view s) noexcept -> std::optional<uuid> {
-  alignas(16) char clean[32];
-  if (s.length() == 36) {
-    if (s[8] != '-' || s[13] != '-' || s[18] != '-' || s[23] != '-') [[unlikely]] return std::nullopt;
-    auto const copy_hex = [&](int src_off, int dst_off, int len) {
-      for(int i=0; i<len; ++i) clean[dst_off + i] = s[src_off + i];
-    };
-    copy_hex(0, 0, 8);
-    copy_hex(9, 8, 4);
-    copy_hex(14, 12, 4);
-    copy_hex(19, 16, 4);
-    copy_hex(24, 20, 12);
-  } else if (s.length() == 32) {
-    std::copy_n(s.data(), 32, clean);
-  } else {
-    return std::nullopt;
-  }
-
-  auto const v1{simde_mm_loadu_si128(reinterpret_cast<simde__m128i const*>(clean))};
-  auto const v2{simde_mm_loadu_si128(reinterpret_cast<simde__m128i const*>(clean + 16))};
-  auto const n1{detail::hex_to_nibble_simd(v1)};
-  auto const n2{detail::hex_to_nibble_simd(v2)};
-  if (simde_mm_movemask_epi8(simde_mm_cmpgt_epi8(n1, simde_mm_set1_epi8(15))) ||
-      simde_mm_movemask_epi8(simde_mm_cmpgt_epi8(n2, simde_mm_set1_epi8(15)))) [[unlikely]] return std::nullopt;
-
-  alignas(16) uint8_t nibbles[32];
-  simde_mm_storeu_si128(reinterpret_cast<simde__m128i*>(nibbles), n1);
-  simde_mm_storeu_si128(reinterpret_cast<simde__m128i*>(nibbles + 16), n2);
-
-  uuid res;
-  for (int i = 0; i < 16; ++i) {
-    res.data[i] = static_cast<uint8_t>((nibbles[i * 2] << 4) | nibbles[i * 2 + 1]);
-  }
-  return res;
+  if (s.length() == 36) return detail::from_chars_impl<true>(s);
+  if (s.length() == 32) return detail::from_chars_impl<false>(s);
+  return std::nullopt;
 }
 
 /**
