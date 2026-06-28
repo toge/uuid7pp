@@ -232,7 +232,40 @@ inline auto extract_timestamp_fast(uuid const& u) noexcept -> uint64_t;
 
 各 Phase 完了時に既存テスト全件 PASS を確認し、次フェーズへ進む。
 
-## 8. リスクと対策
+## 8. 段階的ベンチ検証 & 不採用フィードバックルール
+
+各 Phase (および Phase 内の個別改善ステップ) は以下を遵守する:
+
+### 8.1 ベンチ検証の義務化
+
+- 各改善ステップ完了時に **必ず Catch2 ベンチマーク** (`./build/test/uuid7pp_tests "[benchmark]"`) を実行する
+- ベースライン (Phase 開始前の HEAD) と改善後を直接比較する
+- ベンチは `--benchmark-samples=10` 以上で行い、誤差の小さい中央値を採用する
+- 計測結果は `docs/superpowers/specs/2026-06-28-uuid7pp-perf-bench.md` に Phase 単位で追記する
+
+### 8.2 性能劣化時の不採用判定
+
+- 改善対象としたホットパスの **いずれか** でもベースラインより遅くなった場合、その改善は **不採用** とする
+- 不採用の閾値: 中央値がベースライン比で **1.0 倍未満** (= 明確に遅い)
+- 「同等だが僅かに遅い (±2% 以内)」も不採用 (保守的に判断)
+
+### 8.3 不採用時の対応
+
+- 改善コードは **`// REJECTED:` プレフィクスのコメントを付けて残す**
+- コメントには以下を必ず記述する:
+  - 適用した改善内容の概要
+  - ベンチマーク結果 (ベースライン ns vs 改善後 ns)
+  - 不採用と判定した理由 (推測ではなく計測に基づく事実)
+  - 再挑戦時の参考情報 (例: 「分岐予測ミスが支配的」「レジスタ spill が発生」)
+- 機能としては退行していなければ、コードはファイルに残して OK (機能テストは PASS しているはず)
+- ただし、最終コミットには含めず、別ブランチ (`perf/rejected-attempts/`) に退避する
+
+### 8.4 採用の記録
+
+- 採用された改善は spec の §9 採用履歴に Phase 単位で記録する
+- ベンチ数値 (中央値 ns / speedup 倍率) を残し、後続の改善の参考にする
+
+## 9. リスクと対策
 
 | リスク | 影響 | 対策 |
 |--------|------|------|
@@ -241,9 +274,19 @@ inline auto extract_timestamp_fast(uuid const& u) noexcept -> uint64_t;
 | 既存ユーザが `to_chars(u, out, hyphen, upper)` のシグネチャに依存 | API 破壊 | ラッパを残し意味互換を維持。テンプレ化は内部のみ |
 | xoshiro256 の `std::rotl` が SIMD レジスタ跨ぎで遅くなる | 軽微 | ベンチで実測し、必要なら `__builtin_rotateleft64` に置換 |
 | MSVC での `clock_gettime` 非対応 | Phase 5 遅延 | Phase 5 で `#ifdef _WIN32` の `QueryPerformanceCounter` 経路を別途用意 |
+| 改善が機能テスト PASS でも性能劣化 | Phase 停滞 | §8.2 の不採用判定に従い、`// REJECTED:` コメントで残し退避 |
 
-## 9. 参考リンク
+## 10. 採用履歴 (Phase 単位)
+
+(実装フェーズで埋める。例:)
+
+| Phase | 対象 | ベースライン ns | 改善後 ns | 倍率 | 採用/不採用 |
+|-------|------|----------------|-----------|------|------------|
+| -     | -    | -              | -         | -    | -          |
+
+## 11. 参考リンク
 
 - RFC 9562 — UUID v7 仕様
 - SIMDe — https://github.com/simd-everywhere/simde
 - Catch2 benchmark — `test/test_benchmark.cpp`
+- ベンチ結果ログ — `docs/superpowers/specs/2026-06-28-uuid7pp-perf-bench.md`
