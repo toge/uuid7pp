@@ -143,7 +143,7 @@ static inline auto to_chars_impl(uuid const& u, char* out) noexcept -> void {
     out[23] = '-';
     std::memcpy(out + 24, tmp + 20, 12);
   } else {
-    std::copy_n(tmp, 32, out);
+    std::memcpy(out, tmp, 32);
   }
 }
 template <bool ExpectHyphen>
