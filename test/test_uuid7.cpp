@@ -307,3 +307,27 @@ TEST_CASE("extract_timestamp_fast matches extract_timestamp", "[perf][timestamp]
     REQUIRE(known.has_value());
     CHECK(uuid7pp::extract_timestamp_fast(*known) == 1645557742000ULL);
 }
+
+TEST_CASE("unsafe to_chars_upper / to_chars_plain variants", "[perf][unsafe]") {
+    auto const u = uuid7pp::generator::generate();
+
+    char buf_a[36], buf_b[36];
+    uuid7pp::to_chars(u, buf_a, true, true);
+    uuid7pp::to_chars_upper(u, buf_b, true);
+    CHECK(std::string_view(buf_a, 36) == std::string_view(buf_b, 36));
+
+    char buf_c[32], buf_d[32];
+    uuid7pp::to_chars(u, buf_c, false, false);
+    uuid7pp::to_chars_plain(u, buf_d);
+    CHECK(std::string_view(buf_c, 32) == std::string_view(buf_d, 32));
+
+    char buf_e[32], buf_f[32];
+    uuid7pp::to_chars(u, buf_e, false, true);
+    uuid7pp::to_chars_plain_upper(u, buf_f);
+    CHECK(std::string_view(buf_e, 32) == std::string_view(buf_f, 32));
+
+    char buf_g[36], buf_h[36];
+    uuid7pp::to_chars(u, buf_g, true, false);
+    uuid7pp::to_chars_lower(u, buf_h, true);
+    CHECK(std::string_view(buf_g, 36) == std::string_view(buf_h, 36));
+}

@@ -323,6 +323,46 @@ static inline auto to_chars(uuid const& u, char* out, bool const hyphen = true, 
 }
 
 /**
+ * @brief 大文字・ハイフン指定ありでUUIDをバッファに直接書き込む (unsafe API)
+ * @param u 変換対象のUUID
+ * @param out 書き込み先のバッファ (最低36バイトの空きが必要)
+ * @param hyphen ハイフン ('-') を挿入するかどうか。デフォルトはtrue。
+ */
+inline auto to_chars_upper(uuid const& u, char* out, bool const hyphen = true) noexcept -> void {
+    if (hyphen) detail::to_chars_impl<true, true>(u, out);
+    else        detail::to_chars_impl<true, false>(u, out);
+}
+
+/**
+ * @brief 小文字・ハイフン指定ありでUUIDをバッファに直接書き込む (unsafe API)
+ * @param u 変換対象のUUID
+ * @param out 書き込み先のバッファ (最低36バイトの空きが必要)
+ * @param hyphen ハイフン ('-') を挿入するかどうか。デフォルトはtrue。
+ */
+inline auto to_chars_lower(uuid const& u, char* out, bool const hyphen = true) noexcept -> void {
+    if (hyphen) detail::to_chars_impl<false, true>(u, out);
+    else        detail::to_chars_impl<false, false>(u, out);
+}
+
+/**
+ * @brief 小文字・ハイフンなしでUUIDをバッファに直接書き込む (unsafe API)
+ * @param u 変換対象のUUID
+ * @param out 書き込み先のバッファ (最低32バイトの空きが必要)
+ */
+inline auto to_chars_plain(uuid const& u, char* out) noexcept -> void {
+    detail::to_chars_impl<false, false>(u, out);
+}
+
+/**
+ * @brief 大文字・ハイフンなしでUUIDをバッファに直接書き込む (unsafe API)
+ * @param u 変換対象のUUID
+ * @param out 書き込み先のバッファ (最低32バイトの空きが必要)
+ */
+inline auto to_chars_plain_upper(uuid const& u, char* out) noexcept -> void {
+    detail::to_chars_impl<true, false>(u, out);
+}
+
+/**
  * @brief 文字列からUUIDをパースする (SIMD高速化版)
  *
  * 36文字(ハイフンあり)および32文字(ハイフンなし)の両形式に対応。
