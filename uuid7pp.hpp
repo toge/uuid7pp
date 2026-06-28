@@ -8,6 +8,7 @@
 #include <random>
 #include <string>
 #include <string_view>
+#include <cstring>
 #include <optional>
 
 #ifdef __cpp_lib_format
@@ -132,15 +133,15 @@ static inline auto to_chars_impl(uuid const& u, char* out) noexcept -> void {
   simde_mm_storeu_si128(reinterpret_cast<simde__m128i*>(tmp + 16), res2);
 
   if constexpr (Hyphen) {
-    std::copy_n(tmp, 8, out);
+    std::memcpy(out, tmp, 8);
     out[8] = '-';
-    std::copy_n(tmp + 8, 4, out + 9);
+    std::memcpy(out + 9, tmp + 8, 4);
     out[13] = '-';
-    std::copy_n(tmp + 12, 4, out + 14);
+    std::memcpy(out + 14, tmp + 12, 4);
     out[18] = '-';
-    std::copy_n(tmp + 16, 4, out + 19);
+    std::memcpy(out + 19, tmp + 16, 4);
     out[23] = '-';
-    std::copy_n(tmp + 20, 12, out + 24);
+    std::memcpy(out + 24, tmp + 20, 12);
   } else {
     std::copy_n(tmp, 32, out);
   }
