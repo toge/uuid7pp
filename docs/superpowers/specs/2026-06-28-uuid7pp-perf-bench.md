@@ -61,13 +61,21 @@
 
 ---
 
-## Phase 4: generate_batch と generate() ホットパス仕上げ
+## Phase 4: generate_batch 追加
+
+ベースライン commit: `766b066` (Phase 3 終了)
 
 | 計測項目 | Baseline (Phase3 HEAD) | Improved (Phase4 HEAD) | Speedup |
 |----------|------------------------|------------------------|---------|
-| (Phase 4 終了時に記入) | | | |
+| uuid7pp::generate | 26.72 | 26.72 | 1.00x |
+| uuid7pp::to_string | 9.62 | 9.62 | 1.00x |
+| uuid7pp::to_chars (hyphen) | 3.02 | 2.64 | 1.14x |
+| uuid7pp::to_chars (no-hyphen) | 8.09 | 8.02 | 1.01x |
+| uuid7pp::from_chars (hyphen) | 7.79 | 7.90 | 0.99x |
+| uuid7pp::from_chars (plain) | 2.58 | 2.58 | 1.00x |
+| uuid7pp::extract_timestamp | 0.53 | 0.57 | 0.93x |
 
-判定: TBD
+判定: **PASS** (generate_batch を新規追加、既存メトリクス ±5% 以内)
 
 ---
 

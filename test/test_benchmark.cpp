@@ -18,6 +18,12 @@ TEST_CASE("UUID v7 Benchmark", "[benchmark]") {
         BENCHMARK("boost::generate") {
             return boost_gen();
         };
+
+        alignas(16) uuid7pp::uuid buf[1000];
+        BENCHMARK("uuid7pp::generate_batch(1000) per item") {
+            uuid7pp::generator::generate_batch(buf, 1000);
+            return buf[0].data[0];
+        };
     }
 
     SECTION("String Conversion (std::string)") {
