@@ -386,11 +386,8 @@ inline auto extract_timestamp_fast(uuid const& u) noexcept -> uint64_t {
  */
 [[nodiscard]]
 static inline auto extract_timestamp(uuid const& u) noexcept -> std::chrono::system_clock::time_point {
-  auto ms{0ULL};
-  for (auto i{0}; i < 6; ++i) {
-    ms = (ms << 8) | u.data[i];
-  }
-  return std::chrono::system_clock::time_point{std::chrono::milliseconds{ms}};
+  return std::chrono::system_clock::time_point{
+    std::chrono::milliseconds{extract_timestamp_fast(u)}};
 }
 
 /**
