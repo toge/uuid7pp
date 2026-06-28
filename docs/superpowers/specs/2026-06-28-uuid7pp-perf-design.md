@@ -284,7 +284,7 @@ inline auto extract_timestamp_fast(uuid const& u) noexcept -> uint64_t;
 | 2 | to_chars memcpy 化 | to_chars(hyphen) | 3.02 | 2.51 | 1.20x | 採用 | from_chars の memcpy 化は劣化のため revert 済み。 |
 | 3 | extract_timestamp bswap 化 | extract_timestamp | 0.68 | 0.53 | 1.28x | 採用 | |
 | 4 | generate_batch 追加 | generate_batch | - | - | - | 採用 | 新機能追加。既存メトリクス ±5% 以内。 |
-| 5 | (unsafe API) | | | | | | |
+| 5 | unsafe API 追加 | to_chars_upper/lower/plain | - | - | - | 採用 | API 追加のみ。既存メトリクス ±5% 以内。 |
 
 ## 11. 参考リンク
 

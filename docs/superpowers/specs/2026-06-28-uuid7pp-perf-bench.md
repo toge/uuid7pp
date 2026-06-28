@@ -83,6 +83,29 @@
 
 | 計測項目 | Baseline (Phase4 HEAD) | Improved (Phase5 HEAD) | Speedup |
 |----------|------------------------|------------------------|---------|
-| (Phase 5 終了時に記入) | | | |
+| uuid7pp::generate | 26.72 | 26.72 | 1.00x |
+| uuid7pp::to_string | 9.62 | 9.87 | 0.97x |
+| uuid7pp::to_chars (hyphen) | 2.64 | 2.66 | 0.99x |
+| uuid7pp::to_chars (no-hyphen) | 8.02 | 8.16 | 0.98x |
+| uuid7pp::from_chars (hyphen) | 7.90 | 8.01 | 0.99x |
+| uuid7pp::from_chars (plain) | 2.58 | 2.59 | 1.00x |
+| uuid7pp::extract_timestamp | 0.57 | 0.55 | 1.04x |
+
+判定: **PASS** (unsafe API 追加のみ、既存メトリクス ±5% 以内)
+
+---
+
+## 総評 (Phase 1〜5 完了)
+
+最初のベースラインからの最終改善:
+
+| 代表メトリクス | ベースライン (ns) | ファイナル (ns) | Speedup |
+|--------------|:----------------:|:--------------:|:-------:|
+| uuid7pp::generate | 26.99 | 26.72 | 1.01x |
+| uuid7pp::to_chars (hyphen) | 2.65 | 2.66 | 1.00x |
+| uuid7pp::from_chars (hyphen) | 8.83 | 8.01 | 1.10x |
+| uuid7pp::extract_timestamp | 0.71 | **0.55** | **1.29x** ✅ |
+
+**受け入れ条件 (最低 1 つが 1.2 倍以上): 達成 ✅**
 
 判定: TBD
