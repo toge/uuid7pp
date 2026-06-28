@@ -13,15 +13,15 @@
 
 | 計測項目 | Baseline (HEAD~) | Improved (HEAD) | Speedup |
 |----------|------------------|-----------------|---------|
-| uuid7pp::generate | 26.99 | TBD | TBD |
-| uuid7pp::to_string | 9.79 | TBD | TBD |
-| uuid7pp::to_chars (hyphen) | 2.65 | TBD | TBD |
-| uuid7pp::to_chars (no-hyphen) | 8.02 | TBD | TBD |
-| uuid7pp::from_chars (hyphen) | 8.83 | TBD | TBD |
-| uuid7pp::from_chars (plain) | 2.74 | TBD | TBD |
-| uuid7pp::extract_timestamp | 0.71 | TBD | TBD |
+| uuid7pp::generate | 26.99 | 27.74 | 0.97x |
+| uuid7pp::to_string | 9.79 | 9.68 | 1.01x |
+| uuid7pp::to_chars (hyphen) | 2.65 | 2.72 | 0.97x |
+| uuid7pp::to_chars (no-hyphen) | 8.02 | 8.07 | 0.99x |
+| uuid7pp::from_chars (hyphen) | 8.83 | 7.98 | **1.11x** |
+| uuid7pp::from_chars (plain) | 2.74 | 2.63 | 1.04x |
+| uuid7pp::extract_timestamp | 0.71 | 0.69 | 1.03x |
 
-判定: TBD
+判定: **PASS** (from_chars の NTTP ラッパは劣化したため revert しインライン版に戻した。from_chars はベースライン比改善。他のメトリクスは ±5% 以内)
 
 ---
 
