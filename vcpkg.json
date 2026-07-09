@@ -2,7 +2,6 @@
   "dependencies": [
     "simde",
     "catch2",
-    "stduuid",
     "boost-uuid"
   ]
 }

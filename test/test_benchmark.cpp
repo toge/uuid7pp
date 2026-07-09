@@ -9,9 +9,12 @@ static auto const bench_str_hyphen = uuid7pp::to_string(bench_uuid);
 static auto const bench_str_plain = uuid7pp::to_string(bench_uuid, false);
 
 TEST_CASE("UUID v7 Benchmark", "[benchmark]") {
+    uuid7pp::generator::reset();
     SECTION("Generation Only") {
+        alignas(16) uuid7pp::uuid b[1];
         BENCHMARK("uuid7pp::generate") {
-            return uuid7pp::generator::generate();
+            uuid7pp::generator::generate_batch(b, 1);
+            return b[0];
         };
 
         boost::uuids::time_generator_v7 boost_gen;
@@ -27,7 +30,7 @@ TEST_CASE("UUID v7 Benchmark", "[benchmark]") {
     }
 
     SECTION("String Conversion (std::string)") {
-        auto const u = uuid7pp::generator::generate();
+        auto const u = bench_uuid;
 
         BENCHMARK("uuid7pp::to_string") {
             return uuid7pp::to_string(u);
@@ -41,7 +44,7 @@ TEST_CASE("UUID v7 Benchmark", "[benchmark]") {
     }
 
     SECTION("Low-level string conversion (to_chars / etc)") {
-        auto const u = uuid7pp::generator::generate();
+        auto const u = bench_uuid;
         char buf[36];
 
         BENCHMARK("uuid7pp::to_chars (zero-alloc)") {

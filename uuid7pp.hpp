@@ -228,6 +228,13 @@ private:
 
 public:
   /**
+   * @brief TLS 状態をリセットする (テスト・デバッグ用)
+   */
+  static inline auto reset() noexcept -> void {
+    tls_state = detail::state{};
+  }
+
+  /**
    * @brief 現在時刻でUUID v7を生成する
    * @return 生成されたUUID
    */
@@ -253,6 +260,7 @@ public:
    * @brief 指定したミリ秒タイムスタンプでUUID v7を生成する
    *
    * 同一時刻の呼び出しに対しては、スレッドローカルなカウンタをインクリメントして単調増加性を維持します。
+   * カウンタが飽和した場合はタイムスタンプを 1ms 進めて生成を続けます (RFC 9562 Method 1)。
    * @param ms UNIXタイムスタンプ (ミリ秒)
    * @return 生成されたUUID
    */
@@ -264,14 +272,22 @@ public:
 
     if (ms > st.last_ms) [[likely]] {
       st.last_ms = ms;
-      st.counter = static_cast<uint16_t>(st.rng.next() & 0x03FF);
+      st.counter = 0;  // 進んだらカウンタをリセット (RFC 9562 Method 1)
     } else if (ms == st.last_ms) {
       if (st.counter < 0x0FFF) [[likely]] {
         st.counter++;
+      } else {
+        st.last_ms = ms + 1;  // 飽和: タイムスタンプを 1 進める
+        st.counter = 0;
       }
     } else {
-      // 過去の時刻の場合は内部状態を更新せず独立して生成
-      return pack(ms, static_cast<uint16_t>(st.rng.next() & 0x0FFF), st.rng.next());
+      // 過去の時刻: last_ms を維持し、飽和時のみタイムスタンプを進める
+      if (st.counter < 0x0FFF) [[likely]] {
+        st.counter++;
+      } else {
+        st.last_ms = st.last_ms + 1;
+        st.counter = 0;
+      }
     }
 
     return pack(st.last_ms, st.counter, st.rng.next());
@@ -279,6 +295,8 @@ public:
 
   static inline auto generate_batch(uuid* out, std::size_t n) noexcept -> std::size_t {
     if (n == 0) return 0;
+    if (out == nullptr) [[unlikely]] std::abort();  // 契約違反 (設計書 3.2)
+
     auto& st{tls_state};
     if (!st.initialized) [[unlikely]] initialize(st);
 
@@ -286,17 +304,20 @@ public:
     auto ms{static_cast<uint64_t>(
         std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count())};
 
-    if (ms > st.last_ms) [[likely]] {
+    // wall clock 基準。last_ms と異なれば (過去の巻き戻し含む) counter を 0 から再開。
+    // 同一 ms での連続 batch のみ counter を継続し単調増加を保つ (RFC 9562 Method 1)。
+    if (ms != st.last_ms) [[likely]] {
       st.last_ms = ms;
-      st.counter = static_cast<uint16_t>(st.rng.next() & 0x03FF);
-    } else if (ms < st.last_ms) {
-      st.last_ms = ms;
-      st.counter = static_cast<uint16_t>(st.rng.next() & 0x03FF);
+      st.counter = 0;
     }
 
     for (std::size_t i = 0; i < n; ++i) {
+      if (st.counter == 0x0FFF) [[unlikely]] {
+        st.last_ms = st.last_ms + 1;  // 飽和: タイムスタンプを 1 進める
+        st.counter = 0;
+      }
       out[i] = pack(st.last_ms, st.counter, st.rng.next());
-      if (st.counter < 0x0FFF) [[likely]] ++st.counter;
+      ++st.counter;
     }
     return n;
   }
@@ -372,39 +393,9 @@ inline auto to_chars_plain_upper(uuid const& u, char* out) noexcept -> void {
  * @return パース成功時はUUID、失敗時(形式不正や無効な文字)はstd::nullopt
  */
 static inline auto from_chars(std::string_view s) noexcept -> std::optional<uuid> {
-  alignas(16) char clean[32];
-  if (s.length() == 36) {
-    if (s[8] != '-' || s[13] != '-' || s[18] != '-' || s[23] != '-') [[unlikely]] return std::nullopt;
-    auto const copy_hex = [&](int src_off, int dst_off, int len) {
-      for(int i=0; i<len; ++i) clean[dst_off + i] = s[src_off + i];
-    };
-    copy_hex(0, 0, 8);
-    copy_hex(9, 8, 4);
-    copy_hex(14, 12, 4);
-    copy_hex(19, 16, 4);
-    copy_hex(24, 20, 12);
-  } else if (s.length() == 32) {
-    std::copy_n(s.data(), 32, clean);
-  } else {
-    return std::nullopt;
-  }
-
-  auto const v1{simde_mm_loadu_si128(reinterpret_cast<simde__m128i const*>(clean))};
-  auto const v2{simde_mm_loadu_si128(reinterpret_cast<simde__m128i const*>(clean + 16))};
-  auto const n1{detail::hex_to_nibble_simd(v1)};
-  auto const n2{detail::hex_to_nibble_simd(v2)};
-  if (simde_mm_movemask_epi8(simde_mm_cmpgt_epi8(n1, simde_mm_set1_epi8(15))) ||
-      simde_mm_movemask_epi8(simde_mm_cmpgt_epi8(n2, simde_mm_set1_epi8(15)))) [[unlikely]] return std::nullopt;
-
-  alignas(16) uint8_t nibbles[32];
-  simde_mm_storeu_si128(reinterpret_cast<simde__m128i*>(nibbles), n1);
-  simde_mm_storeu_si128(reinterpret_cast<simde__m128i*>(nibbles + 16), n2);
-
-  uuid res;
-  for (int i = 0; i < 16; ++i) {
-    res.data[i] = static_cast<uint8_t>((nibbles[i * 2] << 4) | nibbles[i * 2 + 1]);
-  }
-  return res;
+  if (s.length() == 36) return detail::from_chars_impl<true>(s);
+  if (s.length() == 32) return detail::from_chars_impl<false>(s);
+  return std::nullopt;
 }
 
 /**
@@ -440,7 +431,7 @@ constexpr auto is_v7(uuid const& u) noexcept -> bool {
 inline auto extract_timestamp_fast(uuid const& u) noexcept -> uint64_t {
     uint64_t v;
     std::memcpy(&v, u.data.data(), sizeof(v));
-    return __builtin_bswap64(v) >> 16;
+    return std::byteswap(v) >> 16;
 }
 
 /**

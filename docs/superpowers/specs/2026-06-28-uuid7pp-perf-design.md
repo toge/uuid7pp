@@ -86,7 +86,8 @@ struct generator {
 
 - 内部で `tls_state` を 1 回ロード → ループ内で `rng.next()` のみを回す
 - 各イテレーションは `pack()` の SIMD 命令列 1 セット (ms/cnt/entropy 取得 + shuffle + store)
-- 同一 ms でカウンタが飽和したら自動でエントロピーだけ進める分岐は維持 (RFC 9562 仕様)
+- 同一 ms でカウンタが飽和したらタイムスタンプを 1ms 進めて生成を続ける (RFC 9562 Method 1):
+  `generate`/`generate_at` は常に `uuid` を返し、`generate_batch` は常に `n` 個生成する
 - ホットパスから `system_clock::now()` の呼び出しを **1 回** に減らす
 
 ### 3.3 unsafe 直接 API

@@ -28,4 +28,4 @@ target_link_libraries(all_test PRIVATE
 
 target_compile_features(all_test PRIVATE cxx_std_23)
 
-add_test(NAME all_test COMMAND all_test -r junit)
+add_test(NAME all_test COMMAND all_test -r junit --order=decl)

@@ -12,6 +12,7 @@
 #include "uuid7pp.hpp"
 
 TEST_CASE("UUID v7 Generation", "[uuid]") {
+  uuid7pp::generator::reset();
     SECTION("Basic generation") {
         auto const u1 = uuid7pp::generator::generate();
         auto const u2 = uuid7pp::generator::generate();
@@ -50,6 +51,7 @@ TEST_CASE("UUID v7 Generation", "[uuid]") {
 
         // 2. generate_at(tp) で特定時刻を指定した UUID から復元した時刻が tp と完全一致すること
         // (ミリ秒精度での比較)
+        uuid7pp::generator::reset();  // last_ms をリセットして tp が確実に最新になるよう
         auto const tp{std::chrono::system_clock::time_point{std::chrono::milliseconds{1234567890123}}};
         auto const u_at{uuid7pp::generator::generate_at(tp)};
         CHECK(uuid7pp::extract_timestamp(u_at) == tp);
@@ -66,7 +68,7 @@ TEST_CASE("UUID v7 Generation", "[uuid]") {
     }
 
     SECTION("Version and Variant") {
-        auto const u = uuid7pp::generator::generate();
+        auto const u = uuid7pp::from_chars("017f22e2-79b0-7cc3-98c4-dc0c0c07398f").value();
         CHECK(uuid7pp::get_version(u) == 7);
         CHECK(uuid7pp::is_v7(u) == true);
 
@@ -93,6 +95,7 @@ TEST_CASE("UUID v7 Generation", "[uuid]") {
 }
 
 TEST_CASE("UUID Conversion and Formatting", "[uuid]") {
+  uuid7pp::generator::reset();
     auto const u = uuid7pp::generator::generate();
 
     SECTION("Default to_string") {
@@ -130,6 +133,7 @@ TEST_CASE("UUID Conversion and Formatting", "[uuid]") {
 }
 
 TEST_CASE("UUID Container Integration", "[uuid]") {
+  uuid7pp::generator::reset();
     SECTION("std::unordered_set") {
         std::unordered_set<uuid7pp::uuid> set;
         auto const u1 = uuid7pp::generator::generate();
@@ -144,6 +148,7 @@ TEST_CASE("UUID Container Integration", "[uuid]") {
 }
 
 TEST_CASE("UUID Comparison and Ordering", "[uuid]") {
+  uuid7pp::generator::reset();
     SECTION("Three-way comparison and strong ordering") {
         auto const u1 = uuid7pp::from_chars("0185966b-4e6a-7000-8000-000000000000").value();
         auto const u2 = uuid7pp::from_chars("0185966b-4e6a-7000-8000-000000000001").value();
@@ -211,7 +216,8 @@ TEST_CASE("UUID Comparison and Ordering", "[uuid]") {
 }
 
 TEST_CASE("NTTP to_chars_impl<Upper,Hyphen> matches existing to_chars", "[nttp][refactor]") {
-    auto const u = uuid7pp::generator::generate();
+  uuid7pp::generator::reset();
+    auto const u = uuid7pp::from_chars("017f22e2-79b0-7cc3-98c4-dc0c0c07398f").value();
 
     char buf_existing[36];
     char buf_impl[36];
@@ -239,6 +245,7 @@ TEST_CASE("NTTP to_chars_impl<Upper,Hyphen> matches existing to_chars", "[nttp][
 }
 
 TEST_CASE("NTTP from_chars_impl<ExpectHyphen> matches existing from_chars", "[nttp][refactor]") {
+  uuid7pp::generator::reset();
     auto const u = uuid7pp::generator::generate();
     auto const s_hyphen = uuid7pp::to_string(u, true, false);
     auto const s_plain  = uuid7pp::to_string(u, false, false);
@@ -268,6 +275,7 @@ TEST_CASE("NTTP from_chars_impl<ExpectHyphen> matches existing from_chars", "[nt
 }
 
 TEST_CASE("generator::generate_batch basic", "[perf][batch]") {
+  uuid7pp::generator::reset();
     constexpr std::size_t N = 100;
     alignas(16) uuid7pp::uuid buf[N];
     auto const count = uuid7pp::generator::generate_batch(buf, N);
@@ -279,13 +287,66 @@ TEST_CASE("generator::generate_batch basic", "[perf][batch]") {
 }
 
 TEST_CASE("generator::generate_batch edge cases", "[perf][batch]") {
+  uuid7pp::generator::reset();
     alignas(16) uuid7pp::uuid buf[1];
     CHECK(uuid7pp::generator::generate_batch(buf, 0) == 0);
     CHECK(uuid7pp::generator::generate_batch(buf, 1) == 1);
     CHECK(buf[0].data[6] >> 4 == 7);  // v7
 }
 
+TEST_CASE("generator::generate counter saturation advances timestamp", "[perf][saturation]") {
+  uuid7pp::generator::reset();
+    // 十分に大きな ms で TLS を確実に前進させ、counter を 0 から開始
+    constexpr uint64_t ms = 0xFFFF'FFFF'FFF0ULL;
+    uuid7pp::uuid last;
+    for (int i = 0; i < 0x1000 + 8; ++i) {
+        last = uuid7pp::generator::generate_at(ms);
+    }
+    // counter が 0x0FFF で飽和したら last_ms が +1 進むため、
+    // 最後の UUID のタイムスタンプは ms より大きくなる
+    auto const ts = static_cast<uint64_t>(
+        std::chrono::duration_cast<std::chrono::milliseconds>(
+            uuid7pp::extract_timestamp(last).time_since_epoch()).count());
+    CHECK(ts > ms);
+}
+
+TEST_CASE("generator::generate_batch saturation returns full count", "[perf][saturation]") {
+  uuid7pp::generator::reset();
+    // 同一 ms 内で 0x1000 を超える個数を 1 回の batch で要求 → 飽和しても常に n 個生成
+    alignas(16) static uuid7pp::uuid buf[0x1000 + 8];
+    auto const k = uuid7pp::generator::generate_batch(buf, 0x1000 + 8);
+    CHECK(k == 0x1000 + 8);  // 常に要求数を生成
+    for (std::size_t i = 0; i < k; ++i) {
+        CHECK(buf[i].data[6] >> 4 == 7);
+    }
+    // 生成されたものは単調増加 (飽和時に ms が進むため保証される)
+    for (std::size_t i = 1; i < k; ++i) {
+        CHECK(buf[i - 1].data < buf[i].data);
+    }
+}
+
+TEST_CASE("generator::generate_batch ignores future-tainted last_ms", "[perf][batch]") {
+  uuid7pp::generator::reset();
+    // わずか未来を指定して last_ms を汚染 (飽和しない 1 回のみ)
+    auto const now{std::chrono::system_clock::now()};
+    auto const future_ms{static_cast<uint64_t>(
+        std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count()) + 1000};
+    (void)uuid7pp::generator::generate_at(future_ms);
+
+    // batch は wall clock 基準で「今」から再開するため、future より過去の時刻で生成される
+    alignas(16) uuid7pp::uuid buf[4];
+    auto const k = uuid7pp::generator::generate_batch(buf, 4);
+    CHECK(k == 4);
+    for (std::size_t i = 0; i < 4; ++i) {
+        auto const bts = static_cast<uint64_t>(
+            std::chrono::duration_cast<std::chrono::milliseconds>(
+                uuid7pp::extract_timestamp(buf[i]).time_since_epoch()).count());
+        CHECK(bts < future_ms);
+    }
+}
+
 TEST_CASE("generator::generate_batch monotonicity", "[perf][batch]") {
+  uuid7pp::generator::reset();
     constexpr std::size_t N = 100;
     alignas(16) uuid7pp::uuid buf[N];
     uuid7pp::generator::generate_batch(buf, N);
@@ -295,7 +356,8 @@ TEST_CASE("generator::generate_batch monotonicity", "[perf][batch]") {
 }
 
 TEST_CASE("extract_timestamp_fast matches extract_timestamp", "[perf][timestamp]") {
-    auto const u = uuid7pp::generator::generate();
+  uuid7pp::generator::reset();
+    auto const u = uuid7pp::from_chars("017f22e2-79b0-7cc3-98c4-dc0c0c07398f").value();
     auto const fast = uuid7pp::extract_timestamp_fast(u);
     auto const tp = uuid7pp::extract_timestamp(u);
     auto const ms_existing = static_cast<uint64_t>(
@@ -309,7 +371,8 @@ TEST_CASE("extract_timestamp_fast matches extract_timestamp", "[perf][timestamp]
 }
 
 TEST_CASE("unsafe to_chars_upper / to_chars_plain variants", "[perf][unsafe]") {
-    auto const u = uuid7pp::generator::generate();
+  uuid7pp::generator::reset();
+    auto const u = uuid7pp::from_chars("017f22e2-79b0-7cc3-98c4-dc0c0c07398f").value();
 
     char buf_a[36], buf_b[36];
     uuid7pp::to_chars(u, buf_a, true, true);
