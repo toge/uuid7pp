@@ -29,3 +29,20 @@ target_link_libraries(all_test PRIVATE
 target_compile_features(all_test PRIVATE cxx_std_23)
 
 add_test(NAME all_test COMMAND all_test -r junit --order=decl)
+
+if(ENABLE_FREESTANDING)
+    if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+        # freestanding 検証: Catch2 を使わず libstdc++ リンクなしでビルド・実行する。
+        # OS 依存 API (generate / generate_batch / generate_at(time_point) /
+        # extract_timestamp(time_point)) の無効化と、seed() + generate_at(uint64_t)
+        # のみの構成で動的確保なしに完結することを確認する。
+        add_executable(freestanding_check freestanding_check.cpp)
+        target_link_libraries(freestanding_check PRIVATE uuid7pp::uuid7pp)
+        target_compile_definitions(freestanding_check PRIVATE UUID7PP_FREESTANDING)
+        target_compile_options(freestanding_check PRIVATE -ffreestanding -fno-exceptions -fno-rtti)
+        target_link_options(freestanding_check PRIVATE -nostdlib++)
+        add_test(NAME freestanding_check COMMAND freestanding_check)
+    else()
+        message(WARNING "ENABLE_FREESTANDING check test requires GNU/Clang")
+    endif()
+endif()

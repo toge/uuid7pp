@@ -1,5 +1,6 @@
 build
 build_static
+build_freestanding
 save-commands.json
 
 # Prerequisites

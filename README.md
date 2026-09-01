@@ -88,6 +88,40 @@ find_package(uuid7pp REQUIRED)
 target_link_libraries(your_target PRIVATE uuid7pp::uuid7pp)
 ```
 
+## FREESTANDING 対応
+
+UUID v7 の生成 (`generate_at(uint64_t)`)・文字列変換 (`to_chars`)・パース (`from_chars`) は動的確保や OS 依存を行わないため、FREESTANDING 環境（組み込み・カーネル・`wasm32-unknown-unknown` など）でも利用できます。
+
+### 有効化方法
+
+| 方法 | 手順 |
+|---|---|
+| コンパイラフラグ | `-DUUID7PP_FREESTANDING` を付与 |
+| CMake | `-DENABLE_FREESTANDING=ON`（テストに freestanding 検証が追加される） |
+
+`wasm32-unknown-unknown`（`__wasm__ && !__wasi__ && !__EMSCRIPTEN__`）では自動で有効になります。
+
+### FREESTANDING モードでの必須手順
+
+乱数源 (`std::random_device`) と壁時計 (`std::chrono::system_clock`) は利用できないため、生成前に `seed()` による明示的なシード設定が必須です。
+
+```cpp
+uuid7pp::generator::seed(hardware_rng());  // 環境の乱数源でシードする
+auto id = uuid7pp::generator::generate_at(unix_time_ms());
+```
+
+未シードのまま `generate_at` を呼ぶと `std::abort()` で停止します。
+
+### 無効化される機能
+
+| 機能 | hosted | FREESTANDING | 代替 |
+|---|---|---|---|
+| `generate()` / `generate_batch()` | 壁時計で生成 | 無効 | `seed()` + `generate_at(uint64_t)` |
+| `generate_at(time_point)` / `extract_timestamp(time_point)` | `std::chrono` 変換 | 無効 | `generate_at(uint64_t)` / `extract_timestamp_fast` |
+| `to_string()` / `std::formatter` 特殊化 | `std::string` を返す | 無効（動的確保のため） | `to_chars()` + 自前バッファ |
+
+FREESTANDING 検証は `test/freestanding_check.cpp` を `-ffreestanding -fno-exceptions -fno-rtti -nostdlib++`（libstdc++ リンクなし）でビルド・実行し、OS 依存 API や動的確保への逆戻りを検出します。
+
 ## ライセンス
 
 MIT License

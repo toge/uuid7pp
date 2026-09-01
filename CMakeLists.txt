@@ -8,6 +8,7 @@ list(PREPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 option(BUILD_TEST "Build tests" ON)
 option(BUILD_SAMPLE "Build sample" ON)
 option(STATIC "static binary for sample" OFF)
+option(ENABLE_FREESTANDING "Define UUID7PP_FREESTANDING and add the freestanding check test" OFF)
 
 ## C++ Standard selection
 set(CMAKE_CXX_STANDARD 23)

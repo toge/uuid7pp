@@ -1,15 +1,31 @@
 #ifndef UUID7PP_HPP__
 #define UUID7PP_HPP__
 
+// FREESTANDING 対応: UUID7PP_FREESTANDING を定義すると、OS に依存する機能
+// (std::random_device / std::chrono::system_clock) を使用する次の API が無効化される:
+//   generate() / generate_batch() / generate_at(time_point) / extract_timestamp(time_point)
+// さらに動的確保を伴う to_string() と std::formatter 特殊化も無効化される
+// (to_chars() で代替すること)。
+// wasm32-unknown-unknown (freestanding) では自動的に有効になる。
+// FREESTANDING モードでは乱数源を提供できないため、generate_at(uint64_t) の
+// 呼び出し前に seed() による明示的なシード設定が必須。
+#if !defined(UUID7PP_FREESTANDING) && defined(__wasm__) && !defined(__wasi__) && !defined(__EMSCRIPTEN__)
+#  define UUID7PP_FREESTANDING 1
+#endif
+
 #include <array>
 #include <bit>
-#include <chrono>
 #include <compare>
-#include <random>
-#include <string>
+#include <cstdlib>
 #include <string_view>
 #include <cstring>
 #include <optional>
+
+#if !defined(UUID7PP_FREESTANDING)
+#include <chrono>
+#include <random>
+#include <string>
+#endif
 
 #ifdef __cpp_lib_format
 #include <format>
@@ -163,7 +179,8 @@ static inline auto from_chars_impl(std::string_view s) noexcept -> std::optional
         copy_hex(24, 20, 12);
     } else {
         if (s.length() != 32) return std::nullopt;
-        std::copy_n(s.data(), 32, clean);
+        // <algorithm> の std::copy_n は freestanding 指定外のため単純ループで代替
+        for (int i = 0; i < 32; ++i) clean[i] = s[i];
     }
 
     auto const v1{simde_mm_loadu_si128(reinterpret_cast<simde__m128i const*>(clean))};
@@ -198,14 +215,13 @@ private:
   static inline thread_local detail::state tls_state;
 
   /**
-   * @brief 乱数生成器の初期化 (std::random_deviceを使用)
+   * @brief 64bit の種値を splitmix64 で 4 ワードの状態へ展開する
    * @param st 初期化対象の状態
+   * @param seed_value 種値
    */
-  static auto initialize(detail::state& st) noexcept -> void {
-    auto rd{std::random_device{}};
-    uint64_t seed = (static_cast<uint64_t>(rd()) << 32) | rd();
-    // ponytail: 2x rd + splitmix64 expands to 4 words, saves ~182us vs 8x rd
-    auto splitmix = [s = seed]() mutable -> uint64_t {
+  static auto expand_seed(detail::state& st, uint64_t const seed_value) noexcept -> void {
+    // ponytail: splitmix64 expands to 4 words, saves ~182us vs 8x rd
+    auto splitmix = [s = seed_value]() mutable -> uint64_t {
       uint64_t z = (s += 0x9e3779b97f4a7c15ULL);
       z = (z ^ (z >> 30)) * 0xbf58476d1ce4e5b9ULL;
       z = (z ^ (z >> 27)) * 0x94d049bb133111ebULL;
@@ -213,6 +229,21 @@ private:
     };
     for (auto& val : st.rng.s) val = splitmix();
     st.initialized = true;
+  }
+
+  /**
+   * @brief 乱数生成器の初期化 (std::random_deviceを使用)
+   * @param st 初期化対象の状態
+   */
+  static auto initialize(detail::state& st) noexcept -> void {
+#if defined(UUID7PP_FREESTANDING)
+    // FREESTANDING 環境では乱数源 (std::random_device) を提供できないため、
+    // seed() による明示的なシード設定が必須。未設定での generate_at 呼び出しは契約違反。
+    std::abort();
+#else
+    auto rd{std::random_device{}};
+    expand_seed(st, (static_cast<uint64_t>(rd()) << 32) | rd());
+#endif
   }
 
   /**
@@ -243,6 +274,17 @@ public:
   }
 
   /**
+   * @brief 乱数生成器を明示的にシードする
+   * @param seed_value 64bit の種値 (内部で splitmix64 により 4 ワードへ展開)
+   * @note FREESTANDING 環境では乱数源 (std::random_device) を利用できないため、
+   *       generate_at 呼び出し前に必ず seed() を呼ぶこと。ホスト環境でもテスト用に利用できる。
+   */
+  static inline auto seed(uint64_t const seed_value) noexcept -> void {
+    expand_seed(tls_state, seed_value);
+  }
+
+#if !defined(UUID7PP_FREESTANDING)
+  /**
    * @brief 現在時刻でUUID v7を生成する
    * @return 生成されたUUID
    */
@@ -263,6 +305,7 @@ public:
       std::chrono::duration_cast<std::chrono::milliseconds>(tp.time_since_epoch()).count())};
     return generate_at(ms);
   }
+#endif
 
   /**
    * @brief 指定したミリ秒タイムスタンプでUUID v7を生成する
@@ -271,6 +314,8 @@ public:
    * カウンタが飽和した場合はタイムスタンプを 1ms 進めて生成を続けます (RFC 9562 Method 1)。
    * @param ms UNIXタイムスタンプ (ミリ秒)
    * @return 生成されたUUID
+   * @note FREESTANDING モードでは、最初の呼び出し前に seed() を呼ぶこと
+   *       (未シードのまま呼ぶと std::abort() で停止する)
    */
   static inline auto generate_at(uint64_t const ms) noexcept -> uuid {
     auto& st{tls_state};
@@ -301,6 +346,7 @@ public:
     return pack(st.last_ms, st.counter, st.rng.next());
   }
 
+#if !defined(UUID7PP_FREESTANDING)
   static inline auto generate_batch(uuid* out, std::size_t n) noexcept -> std::size_t {
     if (n == 0) return 0;
     if (out == nullptr) [[unlikely]] std::abort();  // 契約違反 (設計書 3.2)
@@ -329,6 +375,7 @@ public:
     }
     return n;
   }
+#endif
 };
 
 /**
@@ -442,6 +489,7 @@ inline auto extract_timestamp_fast(uuid const& u) noexcept -> uint64_t {
     return std::byteswap(v) >> 16;
 }
 
+#if !defined(UUID7PP_FREESTANDING)
 /**
  * @brief UUIDからミリ秒タイムスタンプを復元する
  * @param u 復元対象のUUID
@@ -452,7 +500,9 @@ static inline auto extract_timestamp(uuid const& u) noexcept -> std::chrono::sys
   return std::chrono::system_clock::time_point{
     std::chrono::milliseconds{extract_timestamp_fast(u)}};
 }
+#endif
 
+#if !defined(UUID7PP_FREESTANDING)
 /**
  * @brief 利便性のためのstd::string変換関数
  * @param u 変換対象のUUID
@@ -465,6 +515,7 @@ inline auto to_string(uuid const& u, bool const hyphen = true, bool const upper 
   to_chars(u, s.data(), hyphen, upper);
   return s;
 }
+#endif
 
 } // namespace uuid7pp
 
@@ -489,7 +540,7 @@ struct std::hash<uuid7pp::uuid> {
   }
 };
 
-#ifdef __cpp_lib_format
+#if defined(__cpp_lib_format) && !defined(UUID7PP_FREESTANDING)
 
 /**
  * @brief std::formatter の uuid7pp::uuid に対する特殊化 (C++20/23対応)
