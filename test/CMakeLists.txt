@@ -1,3 +1,16 @@
+# WASI Minimal スモークは常時ビルド可能（hosted 依存なし、例外なしでビルドできることの検証）
+add_executable(smoke_wasi_minimal smoke_wasi_minimal.cpp)
+target_link_libraries(smoke_wasi_minimal PRIVATE uuid7pp::uuid7pp)
+target_compile_features(smoke_wasi_minimal PRIVATE cxx_std_23)
+target_compile_definitions(smoke_wasi_minimal PRIVATE UUID7PP_WASI_MINIMAL=1)
+target_compile_options(smoke_wasi_minimal PRIVATE $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-fno-exceptions>)
+add_test(NAME smoke_wasi_minimal COMMAND smoke_wasi_minimal)
+
+if(ENABLE_WASI_MINIMAL)
+  # WASI Minimal ビルドでは hosted なテストはスキップ
+  return()
+endif()
+
 find_package(Catch2 REQUIRED CONFIG)
 
 find_package(Boost REQUIRED CONFIG COMPONENTS uuid)
@@ -29,20 +42,3 @@ target_link_libraries(all_test PRIVATE
 target_compile_features(all_test PRIVATE cxx_std_23)
 
 add_test(NAME all_test COMMAND all_test -r junit --order=decl)
-
-if(ENABLE_FREESTANDING)
-    if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
-        # freestanding 検証: Catch2 を使わず libstdc++ リンクなしでビルド・実行する。
-        # OS 依存 API (generate / generate_batch / generate_at(time_point) /
-        # extract_timestamp(time_point)) の無効化と、seed() + generate_at(uint64_t)
-        # のみの構成で動的確保なしに完結することを確認する。
-        add_executable(freestanding_check freestanding_check.cpp)
-        target_link_libraries(freestanding_check PRIVATE uuid7pp::uuid7pp)
-        target_compile_definitions(freestanding_check PRIVATE UUID7PP_FREESTANDING)
-        target_compile_options(freestanding_check PRIVATE -ffreestanding -fno-exceptions -fno-rtti)
-        target_link_options(freestanding_check PRIVATE -nostdlib++)
-        add_test(NAME freestanding_check COMMAND freestanding_check)
-    else()
-        message(WARNING "ENABLE_FREESTANDING check test requires GNU/Clang")
-    endif()
-endif()

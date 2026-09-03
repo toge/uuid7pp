@@ -1,30 +1,33 @@
 #ifndef UUID7PP_HPP__
 #define UUID7PP_HPP__
 
-// FREESTANDING 対応: UUID7PP_FREESTANDING を定義すると、OS に依存する機能
+// WASI Minimal 対応: UUID7PP_WASI_MINIMAL を定義すると、OS に依存する機能
 // (std::random_device / std::chrono::system_clock) を使用する次の API が無効化される:
 //   generate() / generate_batch() / generate_at(time_point) / extract_timestamp(time_point)
-// さらに動的確保を伴う to_string() と std::formatter 特殊化も無効化される
-// (to_chars() で代替すること)。
-// wasm32-unknown-unknown (freestanding) では自動的に有効になる。
-// FREESTANDING モードでは乱数源を提供できないため、generate_at(uint64_t) の
-// 呼び出し前に seed() による明示的なシード設定が必須。
-#if !defined(UUID7PP_FREESTANDING) && defined(__wasm__) && !defined(__wasi__) && !defined(__EMSCRIPTEN__)
-#  define UUID7PP_FREESTANDING 1
+// 例外送出は行わないため -fno-exceptions でもビルドできる。
+// wasm32-wasip1 / wasm32-emscripten は WASI/hosted とみなすため自動では有効にならず、WASI 上で
+// 最小構成を検証する場合は手動で `-DUUID7PP_WASI_MINIMAL` を指定する。
+// 本ライブラリの WASI 対応は wasi-sdk sysroot を用いた wasm32-wasip1 でのビルドを
+// 想定（wasm3, wasmer 等で実行可能）。
+//
+// 例: clang++ --target=wasm32-wasip1 --sysroot=/opt/wasi-sdk/share/wasi-sysroot
+//       -fno-exceptions -DUUID7PP_WASI_MINIMAL=1 -I . -c sample.cpp -o sample.o
+#if !defined(UUID7PP_WASI_MINIMAL) && defined(__wasm__) && !defined(__wasi__) && !defined(__EMSCRIPTEN__)
+#  define UUID7PP_WASI_MINIMAL 1
 #endif
 
 #include <array>
 #include <bit>
 #include <compare>
 #include <cstdlib>
+#include <string>
 #include <string_view>
 #include <cstring>
 #include <optional>
 
-#if !defined(UUID7PP_FREESTANDING)
+#if !defined(UUID7PP_WASI_MINIMAL)
 #include <chrono>
 #include <random>
-#include <string>
 #endif
 
 #ifdef __cpp_lib_format
@@ -236,8 +239,8 @@ private:
    * @param st 初期化対象の状態
    */
   static auto initialize(detail::state& st) noexcept -> void {
-#if defined(UUID7PP_FREESTANDING)
-    // FREESTANDING 環境では乱数源 (std::random_device) を提供できないため、
+#if defined(UUID7PP_WASI_MINIMAL)
+    // WASI Minimal 環境では乱数源 (std::random_device) を提供できないため、
     // seed() による明示的なシード設定が必須。未設定での generate_at 呼び出しは契約違反。
     std::abort();
 #else
@@ -276,14 +279,14 @@ public:
   /**
    * @brief 乱数生成器を明示的にシードする
    * @param seed_value 64bit の種値 (内部で splitmix64 により 4 ワードへ展開)
-   * @note FREESTANDING 環境では乱数源 (std::random_device) を利用できないため、
+   * @note WASI Minimal 環境では乱数源 (std::random_device) を利用できないため、
    *       generate_at 呼び出し前に必ず seed() を呼ぶこと。ホスト環境でもテスト用に利用できる。
    */
   static inline auto seed(uint64_t const seed_value) noexcept -> void {
     expand_seed(tls_state, seed_value);
   }
 
-#if !defined(UUID7PP_FREESTANDING)
+#if !defined(UUID7PP_WASI_MINIMAL)
   /**
    * @brief 現在時刻でUUID v7を生成する
    * @return 生成されたUUID
@@ -314,7 +317,7 @@ public:
    * カウンタが飽和した場合はタイムスタンプを 1ms 進めて生成を続けます (RFC 9562 Method 1)。
    * @param ms UNIXタイムスタンプ (ミリ秒)
    * @return 生成されたUUID
-   * @note FREESTANDING モードでは、最初の呼び出し前に seed() を呼ぶこと
+   * @note WASI Minimal モードでは、最初の呼び出し前に seed() を呼ぶこと
    *       (未シードのまま呼ぶと std::abort() で停止する)
    */
   static inline auto generate_at(uint64_t const ms) noexcept -> uuid {
@@ -346,7 +349,7 @@ public:
     return pack(st.last_ms, st.counter, st.rng.next());
   }
 
-#if !defined(UUID7PP_FREESTANDING)
+#if !defined(UUID7PP_WASI_MINIMAL)
   static inline auto generate_batch(uuid* out, std::size_t n) noexcept -> std::size_t {
     if (n == 0) return 0;
     if (out == nullptr) [[unlikely]] std::abort();  // 契約違反 (設計書 3.2)
@@ -489,7 +492,7 @@ inline auto extract_timestamp_fast(uuid const& u) noexcept -> uint64_t {
     return std::byteswap(v) >> 16;
 }
 
-#if !defined(UUID7PP_FREESTANDING)
+#if !defined(UUID7PP_WASI_MINIMAL)
 /**
  * @brief UUIDからミリ秒タイムスタンプを復元する
  * @param u 復元対象のUUID
@@ -502,7 +505,6 @@ static inline auto extract_timestamp(uuid const& u) noexcept -> std::chrono::sys
 }
 #endif
 
-#if !defined(UUID7PP_FREESTANDING)
 /**
  * @brief 利便性のためのstd::string変換関数
  * @param u 変換対象のUUID
@@ -515,7 +517,6 @@ inline auto to_string(uuid const& u, bool const hyphen = true, bool const upper 
   to_chars(u, s.data(), hyphen, upper);
   return s;
 }
-#endif
 
 } // namespace uuid7pp
 
@@ -540,7 +541,7 @@ struct std::hash<uuid7pp::uuid> {
   }
 };
 
-#if defined(__cpp_lib_format) && !defined(UUID7PP_FREESTANDING)
+#if defined(__cpp_lib_format)
 
 /**
  * @brief std::formatter の uuid7pp::uuid に対する特殊化 (C++20/23対応)

@@ -1,7 +1,10 @@
 {
   "dependencies": [
     "simde",
-    "catch2",
+    {
+      "name": "catch2",
+      "platform": "!wasm32"
+    },
     "boost-uuid"
   ]
 }

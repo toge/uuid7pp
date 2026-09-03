@@ -8,7 +8,11 @@ list(PREPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 option(BUILD_TEST "Build tests" ON)
 option(BUILD_SAMPLE "Build sample" ON)
 option(STATIC "static binary for sample" OFF)
-option(ENABLE_FREESTANDING "Define UUID7PP_FREESTANDING and add the freestanding check test" OFF)
+option(ENABLE_WASI_MINIMAL "Enable WASI minimal (no OS deps / no exceptions subset) - wasi-sdk wasm32-wasip1 assumed" OFF)
+
+if(ENABLE_WASI_MINIMAL)
+  add_compile_definitions(UUID7PP_WASI_MINIMAL=1)
+endif()
 
 ## C++ Standard selection
 set(CMAKE_CXX_STANDARD 23)
@@ -64,7 +68,7 @@ if(BUILD_TEST)
 endif()
 
 ## Sample Application
-if(BUILD_SAMPLE)
+if(BUILD_SAMPLE AND NOT ENABLE_WASI_MINIMAL)
     add_executable(sample sample.cpp)
     target_link_libraries(sample PRIVATE uuid7pp)
 endif()

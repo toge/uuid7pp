@@ -88,20 +88,22 @@ find_package(uuid7pp REQUIRED)
 target_link_libraries(your_target PRIVATE uuid7pp::uuid7pp)
 ```
 
-## FREESTANDING 対応
+## WASI Minimal 対応
 
-UUID v7 の生成 (`generate_at(uint64_t)`)・文字列変換 (`to_chars`)・パース (`from_chars`) は動的確保や OS 依存を行わないため、FREESTANDING 環境（組み込み・カーネル・`wasm32-unknown-unknown` など）でも利用できます。
+UUID v7 の生成 (`generate_at(uint64_t)`)・文字列変換 (`to_chars`)・パース (`from_chars`) は wasip1 前提であれば WASI Minimal でも利用できます。OS 依存 API を無効化し例外送出を抑制することで `-fno-exceptions` でもビルドできます。
+本ライブラリの WASI 対応は `wasm32-wasip1` + `wasi-sdk` sysroot を想定（`wasm3` / `wasmedge` 等で実行可能）。`wasm32-unknown-unknown`（`__wasm__ && !__wasi__ && !__EMSCRIPTEN__`）では自動で有効になります。wasip1/wasip2 では WASI/hosted とみなすため自動では有効になりません。
 
 ### 有効化方法
 
-| 方法 | 手順 |
-|---|---|
-| コンパイラフラグ | `-DUUID7PP_FREESTANDING` を付与 |
-| CMake | `-DENABLE_FREESTANDING=ON`（テストに freestanding 検証が追加される） |
+| 方法             | 手順                                                                                  |
+| ---------------- | ------------------------------------------------------------------------------------- |
+| コンパイラフラグ | `-DUUID7PP_WASI_MINIMAL` を付与                                                       |
+| CMake            | `-DENABLE_WASI_MINIMAL=ON`（WASI Minimal サブセットでビルド・検証）                   |
+| wasi-sdk         | `triplets/wasm32-wasip1.cmake` + `wasi-sdk-p1.cmake` を chainload（frozenchars 同様） |
 
-`wasm32-unknown-unknown`（`__wasm__ && !__wasi__ && !__EMSCRIPTEN__`）では自動で有効になります。
+`wasm32-wasip1` / `wasm32-emscripten` は WASI/hosted とみなすため自動では有効にならず、WASI 上で WASI Minimal サブセットを検証したい場合は明示的に `-DUUID7PP_WASI_MINIMAL` を付与してください。
 
-### FREESTANDING モードでの必須手順
+### WASI Minimal モードでの必須手順
 
 乱数源 (`std::random_device`) と壁時計 (`std::chrono::system_clock`) は利用できないため、生成前に `seed()` による明示的なシード設定が必須です。
 
@@ -114,13 +116,30 @@ auto id = uuid7pp::generator::generate_at(unix_time_ms());
 
 ### 無効化される機能
 
-| 機能 | hosted | FREESTANDING | 代替 |
-|---|---|---|---|
-| `generate()` / `generate_batch()` | 壁時計で生成 | 無効 | `seed()` + `generate_at(uint64_t)` |
-| `generate_at(time_point)` / `extract_timestamp(time_point)` | `std::chrono` 変換 | 無効 | `generate_at(uint64_t)` / `extract_timestamp_fast` |
-| `to_string()` / `std::formatter` 特殊化 | `std::string` を返す | 無効（動的確保のため） | `to_chars()` + 自前バッファ |
+| 機能                                                        | hosted               | WASI Minimal                  | 代替                                               |
+| ----------------------------------------------------------- | -------------------- | ----------------------------- | -------------------------------------------------- |
+| `generate()` / `generate_batch()`                           | 壁時計で生成         | 無効                          | `seed()` + `generate_at(uint64_t)`                 |
+| `generate_at(time_point)` / `extract_timestamp(time_point)` | `std::chrono` 変換   | 無効                          | `generate_at(uint64_t)` / `extract_timestamp_fast` |
+| `to_string()` / `std::formatter` 特殊化                     | `std::string` を返す | 有効（wasip1 はヒープ利用可） | 必要なら `to_chars()` でも可                       |
 
-FREESTANDING 検証は `test/freestanding_check.cpp` を `-ffreestanding -fno-exceptions -fno-rtti -nostdlib++`（libstdc++ リンクなし）でビルド・実行し、OS 依存 API や動的確保への逆戻りを検出します。
+wasip1 前提のため例外送出は行わず (`std::abort()` で代替)、`-fno-exceptions` でビルドできます。
+
+### vcpkg + cmake で wasm32-wasip1 をビルドする
+
+```bash
+cmake -B build -S . -G Ninja \
+  -DCMAKE_TOOLCHAIN_FILE=$HOME/vcpkg/scripts/buildsystems/vcpkg.cmake \
+  -DVCPKG_TARGET_TRIPLET=wasm32-wasip1 \
+  -DVCPKG_OVERLAY_TRIPLETS=$PWD/triplets \
+  -DVCPKG_CHAINLOAD_TOOLCHAIN_FILE=/opt/wasi-sdk/share/cmake/wasi-sdk-p1.cmake \
+  -DENABLE_WASI_MINIMAL=ON
+cmake --build build
+file build/test/smoke_wasi_minimal # WebAssembly
+```
+
+`--overlay-triplets` を使わず `$VCPKG_ROOT/triplets/community/wasm32-wasip1.cmake` に置いても同様です。
+
+CI の `linux-wasi-minimal` ジョブは `wasi-sdk` の `wasm32-wasip1` で `ENABLE_WASI_MINIMAL=ON` の wasm 生成を、`smoke_wasi_minimal` は hosted で `-fno-exceptions` ビルドを検証しています。
 
 ## ライセンス
 
