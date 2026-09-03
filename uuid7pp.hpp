@@ -34,6 +34,9 @@
 #include <format>
 #endif
 
+#if defined(UUID7PP_WASI_MINIMAL) && !defined(SIMDE_FLOAT16_API)
+#define SIMDE_FLOAT16_API 1
+#endif
 #include <simde/x86/ssse3.h>
 #include <simde/x86/sse4.1.h>
 

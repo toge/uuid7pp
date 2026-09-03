@@ -11,7 +11,7 @@ option(STATIC "static binary for sample" OFF)
 option(ENABLE_WASI_MINIMAL "Enable WASI minimal (no OS deps / no exceptions subset) - wasi-sdk wasm32-wasip1 assumed" OFF)
 
 if(ENABLE_WASI_MINIMAL)
-  add_compile_definitions(UUID7PP_WASI_MINIMAL=1)
+  add_compile_definitions(UUID7PP_WASI_MINIMAL=1 SIMDE_FLOAT16_API=1)
 endif()
 
 ## C++ Standard selection
@@ -24,7 +24,10 @@ endif()
 
 ## Optimization and Warning flags
 if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -pedantic -O3 -march=native")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -pedantic -O3")
+    if(NOT CMAKE_SYSTEM_NAME STREQUAL "WASI")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=native")
+    endif()
     include(CheckCXXCompilerFlag)
     check_cxx_compiler_flag(-fno-link-libatomic CXX_HAS_NO_LINK_LIBATOMIC)
     if(CXX_HAS_NO_LINK_LIBATOMIC)

@@ -119,11 +119,12 @@ jobs:
 
       - name: Verify single header compiles (hosted & WASI minimal wasm)
         run: |
-          /opt/wasi-sdk/bin/clang++ -std=c++23 -I . -DUUID7PP_WASI_MINIMAL=1 -c test/smoke_wasi_minimal.cpp -o /tmp/uuid_wasi_minimal.o
+          /opt/wasi-sdk/bin/clang++ -std=c++23 -I . -I build/vcpkg_installed/wasm32-wasip1/include -DUUID7PP_WASI_MINIMAL=1 -c test/smoke_wasi_minimal.cpp -o /tmp/uuid_wasi_minimal.o
           file /tmp/uuid_wasi_minimal.o | grep -q WebAssembly
           # hosted でも -fno-exceptions で WASI minimal を検証
-          g++ -std=c++23 -I . -DUUID7PP_WASI_MINIMAL=1 -c test/smoke_wasi_minimal.cpp -o /tmp/uuid_wasi_minimal_host.o
-          g++ -std=c++23 -I . -DUUID7PP_WASI_MINIMAL=1 -fno-exceptions -c test/smoke_wasi_minimal.cpp -o /tmp/uuid_wasi_minimal_noexc.o
+          HOST_SIMDE=build/vcpkg_installed/wasm32-wasip1/include
+          g++ -std=c++23 -I . -I $HOST_SIMDE -DUUID7PP_WASI_MINIMAL=1 -c test/smoke_wasi_minimal.cpp -o /tmp/uuid_wasi_minimal_host.o
+          g++ -std=c++23 -I . -I $HOST_SIMDE -DUUID7PP_WASI_MINIMAL=1 -fno-exceptions -c test/smoke_wasi_minimal.cpp -o /tmp/uuid_wasi_minimal_noexc.o
 
   windows-msvc:
     runs-on: windows-latest
