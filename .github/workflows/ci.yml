@@ -62,7 +62,7 @@ jobs:
       - name: Test
         run: ctest --test-dir build -V
 
-  linux-wasi-minimal:
+  linux-wasip1:
     runs-on: ubuntu-latest
     container: fedora:44
 
@@ -89,6 +89,15 @@ jobs:
           /opt/wasi-sdk/bin/clang --version
           /opt/wasi-sdk/bin/clang++ --version
 
+      - name: Install wasmtime
+        run: |
+          WASMTIME_VERSION=$(curl -s https://api.github.com/repos/bytecodealliance/wasmtime/releases/latest | grep '"tag_name":' | sed -E 's/.*"v([^"]+)".*/\1/')
+          curl -sSL "https://github.com/bytecodealliance/wasmtime/releases/latest/download/wasmtime-v${WASMTIME_VERSION}-x86_64-linux.tar.xz" -o /tmp/wasmtime.tar.xz
+          tar -xf /tmp/wasmtime.tar.xz -C /tmp
+          WASMTIME_DIR="/tmp/wasmtime-v${WASMTIME_VERSION}-x86_64-linux"
+          echo "${WASMTIME_DIR}" >> $GITHUB_PATH
+          "${WASMTIME_DIR}/wasmtime" --version
+
       - name: Restore vcpkg cache
         uses: actions/cache@v4
         with:
@@ -106,25 +115,97 @@ jobs:
             ~/vcpkg/bootstrap-vcpkg.sh
           fi
 
-      - name: Build WASI minimal with vcpkg + wasi-sdk (wasm32-wasip1)
+      - name: Build WASI with vcpkg + wasi-sdk (wasm32-wasip1)
         run: |
           cmake -B build -S . -G Ninja \
             -DCMAKE_TOOLCHAIN_FILE=$HOME/vcpkg/scripts/buildsystems/vcpkg.cmake \
             -DVCPKG_TARGET_TRIPLET=wasm32-wasip1 \
             -DVCPKG_OVERLAY_TRIPLETS=$PWD/triplets \
-            -DVCPKG_CHAINLOAD_TOOLCHAIN_FILE=/opt/wasi-sdk/share/cmake/wasi-sdk-p1.cmake \
-            -DENABLE_WASI_MINIMAL=ON
-          cmake --build build
-          file build/test/smoke_wasi_minimal | grep -q WebAssembly
+            -DVCPKG_CHAINLOAD_TOOLCHAIN_FILE=/opt/wasi-sdk/share/cmake/wasi-sdk-p1.cmake
+          cmake --build build --target smoke_no_exceptions
+          file build/test/smoke_no_exceptions | grep -q WebAssembly
 
-      - name: Verify single header compiles (hosted & WASI minimal wasm)
+      - name: Test (wasmtime)
+        run: ctest --test-dir build -V
+
+      - name: Verify single header compiles (hosted & WASI wasm)
         run: |
-          /opt/wasi-sdk/bin/clang++ -std=c++23 -I . -I build/vcpkg_installed/wasm32-wasip1/include -DUUID7PP_WASI_MINIMAL=1 -c test/smoke_wasi_minimal.cpp -o /tmp/uuid_wasi_minimal.o
-          file /tmp/uuid_wasi_minimal.o | grep -q WebAssembly
-          # hosted でも -fno-exceptions で WASI minimal を検証
+          /opt/wasi-sdk/bin/clang++ -std=c++23 -I . -I build/vcpkg_installed/wasm32-wasip1/include -c test/smoke_no_exceptions.cpp -o /tmp/uuid_wasip1.o
+          file /tmp/uuid_wasip1.o | grep -q WebAssembly
+          # hosted でも -fno-exceptions で検証
           HOST_SIMDE=build/vcpkg_installed/wasm32-wasip1/include
-          g++ -std=c++23 -I . -I $HOST_SIMDE -DUUID7PP_WASI_MINIMAL=1 -c test/smoke_wasi_minimal.cpp -o /tmp/uuid_wasi_minimal_host.o
-          g++ -std=c++23 -I . -I $HOST_SIMDE -DUUID7PP_WASI_MINIMAL=1 -fno-exceptions -c test/smoke_wasi_minimal.cpp -o /tmp/uuid_wasi_minimal_noexc.o
+          g++ -std=c++23 -I . -I $HOST_SIMDE -fno-exceptions -c test/smoke_no_exceptions.cpp -o /tmp/uuid_noexc.o
+
+  linux-wasip2:
+    runs-on: ubuntu-latest
+    container: fedora:44
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build tools
+        run: dnf install -y cmake ninja-build git curl zip unzip tar python3 gcc-c++ file
+
+      - name: Cache wasi-sdk
+        uses: actions/cache@v4
+        with:
+          path: /opt/wasi-sdk
+          key: wasi-sdk-34.0
+
+      - name: Install wasi-sdk
+        run: |
+          if [ ! -d /opt/wasi-sdk/bin/clang ]; then
+            curl -L https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-34/wasi-sdk-34.0-x86_64-linux.tar.gz \
+              -o /tmp/wasi-sdk.tar.gz
+            mkdir -p /opt/wasi-sdk
+            tar -xzf /tmp/wasi-sdk.tar.gz -C /opt/wasi-sdk --strip-components=1
+          fi
+          /opt/wasi-sdk/bin/clang --version
+          /opt/wasi-sdk/bin/clang++ --version
+
+      - name: Install wasmtime
+        run: |
+          WASMTIME_VERSION=$(curl -s https://api.github.com/repos/bytecodealliance/wasmtime/releases/latest | grep '"tag_name":' | sed -E 's/.*"v([^"]+)".*/\1/')
+          curl -sSL "https://github.com/bytecodealliance/wasmtime/releases/latest/download/wasmtime-v${WASMTIME_VERSION}-x86_64-linux.tar.xz" -o /tmp/wasmtime.tar.xz
+          tar -xf /tmp/wasmtime.tar.xz -C /tmp
+          WASMTIME_DIR="/tmp/wasmtime-v${WASMTIME_VERSION}-x86_64-linux"
+          echo "${WASMTIME_DIR}" >> $GITHUB_PATH
+          "${WASMTIME_DIR}/wasmtime" --version
+
+      - name: Restore vcpkg cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/vcpkg
+            build/vcpkg_installed
+          key: ${{ runner.os }}-wasi-vcpkg-${{ hashFiles('vcpkg.json') }}
+          restore-keys: |
+            ${{ runner.os }}-wasi-vcpkg-
+
+      - name: Install vcpkg
+        run: |
+          if [ ! -d ~/vcpkg ]; then
+            git clone https://github.com/microsoft/vcpkg.git ~/vcpkg
+            ~/vcpkg/bootstrap-vcpkg.sh
+          fi
+
+      - name: Build WASI with vcpkg + wasi-sdk (wasm32-wasip2)
+        run: |
+          cmake -B build -S . -G Ninja \
+            -DCMAKE_TOOLCHAIN_FILE=$HOME/vcpkg/scripts/buildsystems/vcpkg.cmake \
+            -DVCPKG_TARGET_TRIPLET=wasm32-wasip2 \
+            -DVCPKG_OVERLAY_TRIPLETS=$PWD/triplets \
+            -DVCPKG_CHAINLOAD_TOOLCHAIN_FILE=/opt/wasi-sdk/share/cmake/wasi-sdk-p2.cmake
+          cmake --build build --target smoke_no_exceptions
+          file build/test/smoke_no_exceptions | grep -q WebAssembly
+
+      - name: Test (wasmtime)
+        run: ctest --test-dir build -V
+
+      - name: Verify single header compiles (WASM wasm2)
+        run: |
+          /opt/wasi-sdk/bin/clang++ --target=wasm32-wasip2 -std=c++23 -I . -I build/vcpkg_installed/wasm32-wasip2/include -c test/smoke_no_exceptions.cpp -o /tmp/uuid_wasip2.o
+          file /tmp/uuid_wasip2.o | grep -q WebAssembly
 
   windows-msvc:
     runs-on: windows-latest

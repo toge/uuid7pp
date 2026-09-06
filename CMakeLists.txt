@@ -8,10 +8,12 @@ list(PREPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 option(BUILD_TEST "Build tests" ON)
 option(BUILD_SAMPLE "Build sample" ON)
 option(STATIC "static binary for sample" OFF)
-option(ENABLE_WASI_MINIMAL "Enable WASI minimal (no OS deps / no exceptions subset) - wasi-sdk wasm32-wasip1 assumed" OFF)
 
-if(ENABLE_WASI_MINIMAL)
-  add_compile_definitions(UUID7PP_WASI_MINIMAL=1 SIMDE_FLOAT16_API=1)
+# wasip1 ターゲット判定 (CMAKE_SYSTEM_PROCESSOR + __wasi__ で検出)
+if(CMAKE_SYSTEM_PROCESSOR MATCHES "wasm32" AND CMAKE_SYSTEM_NAME STREQUAL "WASI")
+  set(UUID7PP_WASIP1_TARGET ON)
+else()
+  set(UUID7PP_WASIP1_TARGET OFF)
 endif()
 
 ## C++ Standard selection
@@ -71,7 +73,7 @@ if(BUILD_TEST)
 endif()
 
 ## Sample Application
-if(BUILD_SAMPLE AND NOT ENABLE_WASI_MINIMAL)
+if(BUILD_SAMPLE AND NOT UUID7PP_WASIP1_TARGET)
     add_executable(sample sample.cpp)
     target_link_libraries(sample PRIVATE uuid7pp)
 endif()

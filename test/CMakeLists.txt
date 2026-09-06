@@ -1,13 +1,13 @@
-# WASI Minimal スモークは常時ビルド可能（hosted 依存なし、例外なしでビルドできることの検証）
-add_executable(smoke_wasi_minimal smoke_wasi_minimal.cpp)
-target_link_libraries(smoke_wasi_minimal PRIVATE uuid7pp::uuid7pp)
-target_compile_features(smoke_wasi_minimal PRIVATE cxx_std_23)
-target_compile_definitions(smoke_wasi_minimal PRIVATE UUID7PP_WASI_MINIMAL=1)
-target_compile_options(smoke_wasi_minimal PRIVATE $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-fno-exceptions>)
-add_test(NAME smoke_wasi_minimal COMMAND smoke_wasi_minimal)
+# 例外なしスモークテスト（wasip1 含む全ターゲットでビルド可能）
+# -fno-exceptions でもコンパイル・実行できることを検証
+add_executable(smoke_no_exceptions smoke_no_exceptions.cpp)
+target_link_libraries(smoke_no_exceptions PRIVATE uuid7pp::uuid7pp)
+target_compile_features(smoke_no_exceptions PRIVATE cxx_std_23)
+target_compile_options(smoke_no_exceptions PRIVATE $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-fno-exceptions>)
+add_test(NAME smoke_no_exceptions COMMAND smoke_no_exceptions)
 
-if(ENABLE_WASI_MINIMAL)
-  # WASI Minimal ビルドでは hosted なテストはスキップ
+if(UUID7PP_WASIP1_TARGET)
+  # wasip1 ターゲットでは Catch2 を使わず smoke test のみで動作確認
   return()
 endif()
 
