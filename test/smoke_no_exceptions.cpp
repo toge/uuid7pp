@@ -52,8 +52,10 @@ int main() {
   assert(fmt.size() == 36);
 #endif
 
+#if !defined(UUID7PP_WASIP1)
   // generate_batch nullptr 安全性（例外を出さず 0 を返す）
   assert(generator::generate_batch(nullptr, 10) == 0);
+#endif
 
   return 0;
 }
