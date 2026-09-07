@@ -558,7 +558,7 @@ struct std::formatter<uuid7pp::uuid> {
   /**
    * @brief フォーマット文字列をパースする
    */
-  constexpr auto parse(std::format_parse_context& ctx) {
+  constexpr auto parse(std::format_parse_context& ctx) noexcept {
     auto it = ctx.begin();
     if (it != ctx.end() && (*it == 'x' || *it == 'X' || *it == 'n' || *it == 'N')) {
       format_type = *it++;
